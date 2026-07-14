@@ -76,6 +76,13 @@ local SCRIPTS = {
         keywords    = {"missile", "cities", "warhead"},
     },
     {
+        name        = "BrainSnatch v1",
+        icon        = "🧠",
+        file        = "brainrot_cheats.lua",
+        description = "Catch a Brainrot\nAuto-Battle · ESP · Speed · Teleport · Info",
+        keywords    = {"brainrot", "catch"},
+    },
+    {
         name        = "Cobalt GUI",
         icon        = "🔧",
         file        = "cobalt_gui.lua",

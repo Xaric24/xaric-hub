@@ -45,6 +45,29 @@ local RadioMsg      = findRemote("ChatService", "SendRadioMessage")
 local SetSetting    = findRemote("PlayerSettingsService", "SetSetting")
 local PurchaseItem  = findRemote("WorldBuyableItemService", "PurchaseWorldBuyableItem")
 
+-- Robbery / Grinding remotes
+local BeginRobTrolley  = findRemote("BankRobbery", "BeginRobTrolley")
+local StartRobTrolley  = findRemote("BankRobbery", "StartRobTrolley")
+local GrabTrolleyCash  = findRemote("BankRobbery", "GrabTrolleyCash")
+local StopRobTrolley   = findRemote("BankRobbery", "StopRobTrolley")
+local ReserveCabinet   = findRemote("JewelleryStoreService", "ReserveCabinet")
+local BeginCabinet     = findRemote("JewelleryStoreService", "BeginCabinet")
+local HitCabinet       = findRemote("JewelleryStoreService", "HitCabinet")
+local GrabItem         = findRemote("JewelleryStoreService", "GrabItem")
+local FetchBox         = findRemote("BoxJobService", "FetchBox")
+local DeliverBox       = findRemote("BoxJobService", "DeliverBox")
+local SellSmuggled     = findRemote("SmuggleService", "SellSmuggledGoods")
+local LaunderBriefcase = findRemote("SmuggleService", "LaunderBriefcase")
+local KickDoor         = findRemote("SmallHouseRobberyService", "KickDoor")
+local BeginDoorBreach  = findRemote("SmallHouseRobberyService", "BeginDoorBreach")
+local StartDoorBreach  = findRemote("SmallHouseRobberyService", "StartDoorBreach")
+local ReserveBreakSafe = findRemote("SmallHouseRobberyService", "ReserveBreakSafe")
+local BeginBreakSafe   = findRemote("SmallHouseRobberyService", "BeginBreakSafe")
+local PressBreakSafe   = findRemote("SmallHouseRobberyService", "PressBreakSafe")
+local GrabSafeCash     = findRemote("SmallHouseRobberyService", "GrabSafeCash")
+local StartMission     = findRemote("TruckService", "StartMission")
+local SpeakToTrucker   = findRemote("TruckService", "SpeakToTrucker")
+
 -- ═══════════════════════════════════════════
 -- HELPERS
 -- ═══════════════════════════════════════════
@@ -76,6 +99,11 @@ local State = {
     godMode         = false,
     esp             = false,
     fullbright      = false,
+    -- Grind
+    autoRobBank     = false,
+    autoJewellery   = false,
+    autoBoxJob      = false,
+    autoSellSmuggle = false,
 }
 getgenv()._coyoteState = State
 
@@ -349,6 +377,75 @@ BorderTab:CreateButton({
 })
 
 -- ═══════════════════════════════════════════
+-- TAB: GRIND
+-- ═══════════════════════════════════════════
+local GrindTab = Window:CreateTab("💰 Grind", 0)
+
+GrindTab:CreateSection("Bank Robbery")
+
+GrindTab:CreateToggle({
+    Name = "Auto-Rob Bank Trolleys",
+    CurrentValue = false,
+    Flag = "AutoRobBank",
+    Callback = function(v) State.autoRobBank = v end,
+})
+
+GrindTab:CreateButton({
+    Name = "Teleport to Bank Vault",
+    Callback = function()
+        tpTo(Vector3.new(-277, 16, -249))
+    end,
+})
+
+GrindTab:CreateSection("Jewellery Store")
+
+GrindTab:CreateToggle({
+    Name = "Auto-Rob Jewellery Cabinets",
+    CurrentValue = false,
+    Flag = "AutoJewellery",
+    Callback = function(v) State.autoJewellery = v end,
+})
+
+GrindTab:CreateButton({
+    Name = "Teleport to Jewellery Store",
+    Callback = function()
+        tpTo(Vector3.new(-45, 22, 925))
+    end,
+})
+
+GrindTab:CreateSection("Box Delivery")
+
+GrindTab:CreateToggle({
+    Name = "Auto-Box Delivery (fetch → deliver loop)",
+    CurrentValue = false,
+    Flag = "AutoBoxJob",
+    Callback = function(v) State.autoBoxJob = v end,
+})
+
+GrindTab:CreateSection("Smuggling")
+
+GrindTab:CreateToggle({
+    Name = "Auto-Sell Smuggled Goods",
+    CurrentValue = false,
+    Flag = "AutoSellSmuggle",
+    Callback = function(v) State.autoSellSmuggle = v end,
+})
+
+GrindTab:CreateButton({
+    Name = "Sell Smuggled Goods Now",
+    Callback = function()
+        pcall(function() SellSmuggled:FireServer() end)
+    end,
+})
+
+GrindTab:CreateButton({
+    Name = "Launder Briefcase Now",
+    Callback = function()
+        pcall(function() LaunderBriefcase:FireServer() end)
+    end,
+})
+
+-- ═══════════════════════════════════════════
 -- TAB: MISC
 -- ═══════════════════════════════════════════
 local MiscTab = Window:CreateTab("⚙️ Misc", 0)
@@ -438,6 +535,145 @@ do
             VU:CaptureController()
             VU:ClickButton2(Vector2.new())
         end)
+    end))
+end
+
+-- AUTO-ROB BANK TROLLEYS
+do
+    local robbing = false
+    local lastTick = 0
+    track(RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - lastTick < 2 then return end
+        lastTick = now
+        if not State.autoRobBank or robbing then return end
+        robbing = true
+
+        task.spawn(function()
+            pcall(function()
+                local bank = Workspace:FindFirstChild("Bank")
+                if not bank then robbing = false return end
+
+                -- TP to bank if far away
+                local hrp = getHRP()
+                if hrp and (hrp.Position - Vector3.new(-277, 16, -249)).Magnitude > 50 then
+                    tpTo(Vector3.new(-277, 16, -249))
+                    task.wait(1)
+                end
+
+                for _, trolley in ipairs(bank:GetChildren()) do
+                    if not State.autoRobBank then break end
+                    if trolley.Name == "Trolley" then
+                        pcall(function()
+                            local result = BeginRobTrolley:InvokeServer(trolley)
+                            task.wait(0.3)
+                            StartRobTrolley:InvokeServer(trolley)
+                            task.wait(0.5)
+                            for i = 1, 10 do
+                                if not State.autoRobBank then break end
+                                pcall(function() GrabTrolleyCash:InvokeServer(trolley) end)
+                                task.wait(0.3)
+                            end
+                            pcall(function() StopRobTrolley:InvokeServer(trolley) end)
+                        end)
+                        task.wait(0.5)
+                    end
+                end
+            end)
+            robbing = false
+        end)
+    end))
+end
+
+-- AUTO-ROB JEWELLERY CABINETS
+do
+    local robbing = false
+    local lastTick = 0
+    track(RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - lastTick < 2 then return end
+        lastTick = now
+        if not State.autoJewellery or robbing then return end
+        robbing = true
+
+        task.spawn(function()
+            pcall(function()
+                local store = Workspace:FindFirstChild("JewelleryStore")
+                if not store then robbing = false return end
+
+                -- TP to jewellery store if far
+                local hrp = getHRP()
+                if hrp and (hrp.Position - Vector3.new(-45, 22, 925)).Magnitude > 50 then
+                    tpTo(Vector3.new(-45, 22, 925))
+                    task.wait(1)
+                end
+
+                for _, folder in ipairs(store:GetChildren()) do
+                    if not State.autoJewellery then break end
+                    if folder.Name == "JewelleryCabinet" then
+                        pcall(function()
+                            ReserveCabinet:InvokeServer(folder)
+                            task.wait(0.3)
+                            BeginCabinet:InvokeServer(folder)
+                            task.wait(0.3)
+                            for i = 1, 15 do
+                                if not State.autoJewellery then break end
+                                local done = pcall(function() HitCabinet:InvokeServer(folder) end)
+                                task.wait(0.2)
+                            end
+                            pcall(function() GrabItem:InvokeServer(folder) end)
+                        end)
+                        task.wait(0.5)
+                    end
+                end
+            end)
+            robbing = false
+        end)
+    end))
+end
+
+-- AUTO-BOX DELIVERY
+do
+    local delivering = false
+    local lastTick = 0
+    local FETCH_POS = Vector3.new(-17.5, 18.1, -70.3)
+    local DELIVER_POS = Vector3.new(5.8, 16.5, -48.0)
+
+    track(RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - lastTick < 3 then return end
+        lastTick = now
+        if not State.autoBoxJob or delivering then return end
+        delivering = true
+
+        task.spawn(function()
+            pcall(function()
+                -- TP to fetch
+                tpTo(FETCH_POS + Vector3.new(0, 3, 0))
+                task.wait(1)
+                FetchBox:FireServer()
+                task.wait(2)
+
+                -- TP to deliver
+                tpTo(DELIVER_POS + Vector3.new(0, 3, 0))
+                task.wait(1)
+                DeliverBox:FireServer()
+                task.wait(1)
+            end)
+            delivering = false
+        end)
+    end))
+end
+
+-- AUTO-SELL SMUGGLED GOODS
+do
+    local lastTick = 0
+    track(RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - lastTick < 5 then return end
+        lastTick = now
+        if not State.autoSellSmuggle then return end
+        pcall(function() SellSmuggled:FireServer() end)
     end))
 end
 

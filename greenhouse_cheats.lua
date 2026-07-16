@@ -358,6 +358,55 @@ FarmTab:CreateButton({
     end,
 })
 
+FarmTab:CreateButton({
+    Name = "🎁 Redeem All Codes",
+    Callback = function()
+        task.spawn(function()
+            local CODES = {
+                "GEMSTRAWBERRY",
+                "RELEASE",
+                "GREENHOUSE",
+                "THANKYOU",
+                "1KLIKES",
+                "5KLIKES",
+                "10KLIKES",
+                "25KLIKES",
+                "50KLIKES",
+                "100KLIKES",
+                "SORRY",
+                "UPDATE1",
+                "UPDATE2",
+                "UPDATE3",
+                "NEWGREENHOUSE",
+                "STARDUST",
+                "AREA2",
+                "FOREST",
+                "FREESTUFF",
+                "SEEDS",
+                "SUMMER",
+                "SPRING",
+                "WINTER",
+                "AUTUMN",
+            }
+            local redeemed = 0
+            for _, code in ipairs(CODES) do
+                pcall(function()
+                    ReplicatedStorage.SubmitCode:FireServer(code)
+                    redeemed = redeemed + 1
+                end)
+                task.wait(0.5)
+            end
+            pcall(function()
+                Rayfield:Notify({
+                    Title = "Codes Redeemed",
+                    Content = "Fired " .. redeemed .. "/" .. #CODES .. " codes!",
+                    Duration = 4,
+                })
+            end)
+        end)
+    end,
+})
+
 -- ═══════════════════════════════════════════
 -- TAB: TELEPORT
 -- ═══════════════════════════════════════════

@@ -10,6 +10,8 @@
       • 🐟 Cobalt v3     — BE A FISH BAIT!
       • ⚔ Warhead v1     — Missiles vs Cities
       • 🧠 BrainSnatch   — Catch a Brainrot
+      • 🌿 GreenThumb v1 — My Greenhouse!
+      • ⭐ StarForge v1   — Make a Galaxy ✨
       • 🔧 Cobalt GUI    — Universal Dev Tools
 ]]
 
@@ -100,6 +102,15 @@ local SCRIPTS = {
         features    = {"Auto-Collect", "Auto-Harvest", "Auto-Sell", "ESP"},
         keywords    = {"greenhouse", "my greenhouse"},
         color       = Color3.fromRGB(60, 180, 80),
+    },
+    {
+        name        = "StarForge v1",
+        icon        = "⭐",
+        file        = "galaxy_cheats.lua",
+        description = "Make a Galaxy ✨",
+        features    = {"Auto-Collect", "Auto-Sell", "Auto-Crate", "Auto-Fuse"},
+        keywords    = {"galaxy", "make a galaxy", "comet", "planet"},
+        color       = Color3.fromRGB(255, 215, 80),
     },
     {
         name        = "Cobalt GUI",

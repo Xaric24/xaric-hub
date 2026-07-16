@@ -472,20 +472,18 @@ local function launchScript(entry)
     local filePath = BASE_PATH .. entry.file
     print("[XaricHub] Loading " .. entry.name .. " from: " .. filePath)
     local ok, err = pcall(function()
-        if readfile then
-            print("[XaricHub] Using readfile+loadstring")
-            local src = readfile(filePath)
-            print("[XaricHub] Read " .. #src .. " bytes")
-            local fn, compileErr = loadstring(src, entry.file)
-            if fn then
-                fn()
-            else
-                error("Compile error: " .. tostring(compileErr))
-            end
-        elseif executefile then
+        if executefile then
+            print("[XaricHub] Using executefile")
             executefile(filePath)
         elseif dofile then
+            print("[XaricHub] Using dofile")
             dofile(filePath)
+        elseif readfile then
+            print("[XaricHub] Using readfile+loadstring")
+            local src = readfile(filePath)
+            if not src then error("readfile returned nil") end
+            local fn, compileErr = loadstring(src, entry.file)
+            if fn then fn() else error("Compile: " .. tostring(compileErr)) end
         else
             local fn, loadErr = loadfile(filePath)
             if fn then fn() else error(tostring(loadErr)) end

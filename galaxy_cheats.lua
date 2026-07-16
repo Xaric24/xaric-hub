@@ -81,7 +81,6 @@ local State = {
     noclip          = false,
     antiAFK         = true,
     autoCollect     = false,
-    autoSell        = false,
     autoHatch       = false,
     autoOpenCrate   = false,
     crateType       = "Basic",
@@ -161,31 +160,46 @@ PlayerTab:CreateToggle({
 -- ═══════════════════════════════════════════
 local FarmTab = Window:CreateTab("🌌 Farm", 0)
 
-FarmTab:CreateSection("Auto-Collect")
+FarmTab:CreateSection("Collection")
 
 FarmTab:CreateToggle({
-    Name = "Auto-Collect Planets (server toggle)",
+    Name = "Auto-Collect Stored Coins",
     CurrentValue = false,
     Flag = "AutoCollect",
-    Callback = function(v)
-        State.autoCollect = v
-        pcall(function() AutoCollectToggle:FireServer(v) end)
+    Callback = function(v) State.autoCollect = v end,
+})
+
+FarmTab:CreateButton({
+    Name = "Collect All Stored Coins Now",
+    Callback = function()
+        pcall(function() SellInventory:FireServer() end)
     end,
 })
 
 FarmTab:CreateSection("Selling")
 
-FarmTab:CreateToggle({
-    Name = "Auto-Sell All Planets",
-    CurrentValue = false,
-    Flag = "AutoSell",
-    Callback = function(v) State.autoSell = v end,
-})
-
 FarmTab:CreateButton({
-    Name = "Sell All Planets Now",
+    Name = "Sell Planet (by index)",
     Callback = function()
-        pcall(function() SellInventory:FireServer() end)
+        task.spawn(function()
+            pcall(function()
+                local inv = getInventory()
+                if inv and inv.planets and #inv.planets > 0 then
+                    local lowest = inv.planets[1]
+                    for _, p in ipairs(inv.planets) do
+                        if p.cps < lowest.cps then lowest = p end
+                    end
+                    SellPlanet:FireServer(lowest.index)
+                    pcall(function()
+                        Rayfield:Notify({
+                            Title = "Sold Planet",
+                            Content = lowest.displayName .. " (" .. lowest.cps .. " CPS)",
+                            Duration = 3,
+                        })
+                    end)
+                end
+            end)
+        end)
     end,
 })
 
@@ -420,14 +434,14 @@ do
     end))
 end
 
--- AUTO-SELL
+-- AUTO-COLLECT STORED COINS
 do
     local lastTick = 0
     track(RunService.Heartbeat:Connect(function()
         local now = tick()
-        if now - lastTick < 3 then return end
+        if now - lastTick < 5 then return end
         lastTick = now
-        if not State.autoSell then return end
+        if not State.autoCollect then return end
         pcall(function()
             SellInventory:FireServer()
         end)

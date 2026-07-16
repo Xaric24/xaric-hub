@@ -182,6 +182,8 @@ local State = {
     cropESP         = false,
     tpCollect       = false,
     autoQTE         = false,
+    autoPlant       = false,
+    plantSeed       = "Buttercup",
 }
 getgenv()._greenthumbState = State
 
@@ -287,6 +289,26 @@ FarmTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoHarvest",
     Callback = function(v) State.autoHarvest = v end,
+})
+
+FarmTab:CreateToggle({
+    Name = "Auto-Plant (replants empty planters)",
+    CurrentValue = false,
+    Flag = "AutoPlant",
+    Callback = function(v) State.autoPlant = v end,
+})
+
+FarmTab:CreateDropdown({
+    Name = "Plant Seed",
+    Options = {
+        "Buttercup", "Beetroot", "Coneflower", "Nightshade",
+        "Clover", "Cosmos", "Strawberry", "Kale", "Cabbage",
+        "Daisy", "Tickseed", "Baneberry", "Wildflower",
+        "Apple", "FourLeafClover", "LillyoftheValley",
+    },
+    CurrentOption = {"Buttercup"},
+    Flag = "PlantSeed",
+    Callback = function(v) State.plantSeed = v[1] or v end,
 })
 
 FarmTab:CreateToggle({
@@ -694,6 +716,63 @@ do
         pcall(function()
             ReplicatedStorage.Sell:FireServer()
             collectStats.sold = collectStats.sold + 1
+        end)
+    end))
+end
+
+-- AUTO-PLANT (replant empty planters)
+do
+    local lastTick = 0
+    local planting = false
+    track(RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - lastTick < 5 then return end
+        lastTick = now
+        if not State.autoPlant or planting then return end
+        planting = true
+
+        task.spawn(function()
+            pcall(function()
+                local myGH = getMyGreenhouse()
+                if not myGH then planting = false return end
+
+                -- Find empty planters (not plantInside, no Grown child)
+                local emptyPlanters = {}
+                for _, c in ipairs(myGH:GetChildren()) do
+                    if c.Name == "Planter" and c:IsA("Model") and not c:GetAttribute("PlantInside") then
+                        local cd
+                        for _, d in ipairs(c:GetDescendants()) do
+                            if d:IsA("ClickDetector") then cd = d break end
+                        end
+                        if cd then
+                            table.insert(emptyPlanters, {model = c, cd = cd, number = c:GetAttribute("Number")})
+                        end
+                    end
+                end
+
+                if #emptyPlanters == 0 then planting = false return end
+
+                -- Enter plant mode
+                local seed = State.plantSeed or "Buttercup"
+                ReplicatedStorage.PlantMode:FireServer(seed)
+                LP:SetAttribute("Planting", true)
+                task.wait(0.3)
+
+                -- Click each empty planter
+                for _, p in ipairs(emptyPlanters) do
+                    if not State.autoPlant then break end
+                    pcall(function()
+                        fireclickdetector(p.cd)
+                    end)
+                    task.wait(0.4)
+                end
+
+                -- Exit plant mode
+                task.wait(0.3)
+                ReplicatedStorage.ClosePlanting:FireServer()
+                LP:SetAttribute("Planting", false)
+            end)
+            planting = false
         end)
     end))
 end

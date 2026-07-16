@@ -12,6 +12,7 @@
       • 🧠 BrainSnatch   — Catch a Brainrot
       • 🌿 GreenThumb v1 — My Greenhouse!
       • ⭐ StarForge v1   — Make a Galaxy ✨
+      • 🐺 Coyote v1      — San Diego Border RP
       • 🔧 Cobalt GUI    — Universal Dev Tools
 ]]
 
@@ -111,6 +112,15 @@ local SCRIPTS = {
         features    = {"Auto-Collect", "Auto-Sell", "Auto-Crate", "Auto-Fuse"},
         keywords    = {"galaxy", "make a galaxy", "comet", "planet"},
         color       = Color3.fromRGB(255, 215, 80),
+    },
+    {
+        name        = "Coyote v1",
+        icon        = "🐺",
+        file        = "border_cheats.lua",
+        description = "San Diego Border RP",
+        features    = {"ESP", "Noclip", "God Mode", "Teleport"},
+        keywords    = {"san diego", "border", "roleplay", "coyote"},
+        color       = Color3.fromRGB(230, 180, 80),
     },
     {
         name        = "Cobalt GUI",

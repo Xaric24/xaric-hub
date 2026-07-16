@@ -93,6 +93,15 @@ local SCRIPTS = {
         color       = Color3.fromRGB(180, 100, 255),
     },
     {
+        name        = "GreenThumb v1",
+        icon        = "🌿",
+        file        = "greenhouse_cheats.lua",
+        description = "My Greenhouse!",
+        features    = {"Auto-Collect", "Auto-Harvest", "Auto-Sell", "ESP"},
+        keywords    = {"greenhouse", "my greenhouse"},
+        color       = Color3.fromRGB(60, 180, 80),
+    },
+    {
         name        = "Cobalt GUI",
         icon        = "🔧",
         file        = "cobalt_gui.lua",

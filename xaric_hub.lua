@@ -471,19 +471,22 @@ local function launchScript(entry)
 
     local filePath = BASE_PATH .. entry.file
     local ok, err = pcall(function()
-        if executefile then
-            executefile(filePath)
-        elseif dofile then
-            dofile(filePath)
-        elseif loadfile then
-            local fn, loadErr = loadfile(filePath)
+        -- readfile + loadstring is the most reliable with absolute paths
+        if readfile then
+            local src = readfile(filePath)
+            local fn, compileErr = loadstring(src, entry.file)
             if fn then
                 fn()
             else
-                error(loadErr or "loadfile returned nil for " .. filePath)
+                error("Compile error: " .. tostring(compileErr))
             end
+        elseif executefile then
+            executefile(filePath)
+        elseif dofile then
+            dofile(filePath)
         else
-            loadstring(readfile(filePath))()
+            local fn, loadErr = loadfile(filePath)
+            if fn then fn() else error(tostring(loadErr)) end
         end
     end)
     if not ok then

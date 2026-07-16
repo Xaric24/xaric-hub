@@ -181,6 +181,7 @@ local State = {
     collectESP      = false,
     cropESP         = false,
     tpCollect       = false,
+    autoQTE         = false,
 }
 getgenv()._greenthumbState = State
 
@@ -293,6 +294,15 @@ FarmTab:CreateToggle({
     CurrentValue = false,
     Flag = "CropESP",
     Callback = function(v) State.cropESP = v end,
+})
+
+FarmTab:CreateSection("Minigames")
+
+FarmTab:CreateToggle({
+    Name = "Auto-QTE (Flowers / Bar / Mushrooms)",
+    CurrentValue = false,
+    Flag = "AutoQTE",
+    Callback = function(v) State.autoQTE = v end,
 })
 
 FarmTab:CreateSection("Selling")
@@ -688,6 +698,79 @@ do
     end))
 end
 
+-- AUTO-QTE (Wildflower / Mushroom / BarTarget minigames)
+do
+    local lastTick = 0
+    track(RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - lastTick < 0.15 then return end
+        lastTick = now
+        if not State.autoQTE then return end
+
+        pcall(function()
+            local pg = LP.PlayerGui
+
+            -- 1) WildflowerMinigame: click any ImageButton/TextButton that spawns in GameFrame
+            local wfMG = pg:FindFirstChild("WildflowerMinigame")
+            if wfMG and wfMG.Enabled then
+                local gameFrame = wfMG:FindFirstChild("GameFrame")
+                if gameFrame then
+                    for _, child in ipairs(gameFrame:GetChildren()) do
+                        if (child:IsA("ImageButton") or child:IsA("TextButton")) and child.Visible then
+                            pcall(function()
+                                -- Virtual click via firesignal or direct invoke
+                                if firesignal then
+                                    firesignal(child.MouseButton1Click)
+                                elseif child.MouseButton1Click then
+                                    child.MouseButton1Click:Fire()
+                                end
+                            end)
+                        end
+                    end
+                end
+            end
+
+            -- 2) MushroomMinigame: click M1, M2, M3 buttons
+            local mushMG = pg:FindFirstChild("MushroomMinigame")
+            if mushMG and mushMG.Enabled then
+                local gameFrame = mushMG:FindFirstChild("GameFrame")
+                if gameFrame then
+                    for _, btn in ipairs(gameFrame:GetChildren()) do
+                        if (btn:IsA("ImageButton") or btn:IsA("TextButton")) and btn.Visible then
+                            pcall(function()
+                                if firesignal then
+                                    firesignal(btn.MouseButton1Click)
+                                elseif btn.MouseButton1Click then
+                                    btn.MouseButton1Click:Fire()
+                                end
+                            end)
+                        end
+                    end
+                end
+            end
+
+            -- 3) BarTargetMinigame: click the ClickDetector ImageButton + fire BarAccuracy
+            local barMG = pg:FindFirstChild("BarTargetMinigame")
+            if barMG and barMG.Enabled then
+                local clickBtn = barMG:FindFirstChild("ClickDetector")
+                if clickBtn and clickBtn:IsA("ImageButton") and clickBtn.Visible then
+                    pcall(function()
+                        if firesignal then
+                            firesignal(clickBtn.MouseButton1Click)
+                        elseif clickBtn.MouseButton1Click then
+                            clickBtn.MouseButton1Click:Fire()
+                        end
+                    end)
+                    -- Also fire BarAccuracy with perfect score
+                    pcall(function()
+                        ReplicatedStorage.BarAccuracy:FireServer(1)
+                    end)
+                end
+            end
+        end)
+    end))
+end
+
 -- COLLECTABLE ESP
 do
     local espParts = {}
@@ -810,8 +893,9 @@ pcall(function()
     if not overlay.Parent then overlay.Parent = game:GetService("CoreGui") end
 
     local frame = Instance.new("Frame")
+    frame.AnchorPoint = Vector2.new(1, 0)
     frame.Size = UDim2.new(0, 210, 0, 90)
-    frame.Position = UDim2.new(0, 10, 0.5, -45)
+    frame.Position = UDim2.new(1, -10, 0, 70)
     frame.BackgroundColor3 = Color3.fromRGB(12, 18, 12)
     frame.BackgroundTransparency = 0.15
     frame.BorderSizePixel = 0

@@ -470,10 +470,12 @@ local function launchScript(entry)
     ScreenGui:Destroy()
 
     local filePath = BASE_PATH .. entry.file
+    print("[XaricHub] Loading " .. entry.name .. " from: " .. filePath)
     local ok, err = pcall(function()
-        -- readfile + loadstring is the most reliable with absolute paths
         if readfile then
+            print("[XaricHub] Using readfile+loadstring")
             local src = readfile(filePath)
+            print("[XaricHub] Read " .. #src .. " bytes")
             local fn, compileErr = loadstring(src, entry.file)
             if fn then
                 fn()
@@ -491,6 +493,15 @@ local function launchScript(entry)
     end)
     if not ok then
         warn("[XaricHub] Failed to load " .. entry.name .. ": " .. tostring(err))
+        pcall(function()
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "XaricHub Error",
+                Text = entry.name .. ": " .. tostring(err):sub(1, 80),
+                Duration = 8,
+            })
+        end)
+    else
+        print("[XaricHub] " .. entry.name .. " loaded OK")
     end
 end
 

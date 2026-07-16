@@ -166,6 +166,25 @@ end
 
 local collectStats = {collected = 0, sold = 0}
 
+local HttpService = game:GetService("HttpService")
+local function isBackpackFull()
+    local ok, full = pcall(function()
+        local data = LP:FindFirstChild("data")
+        if not data then return false end
+        local stats = HttpService:JSONDecode(data:GetAttribute("Stats") or "{}")
+        local inv = HttpService:JSONDecode(data:GetAttribute("Inventory") or "{}")
+        local cap = stats.Capacity or 15
+        local count = 0
+        for k, v in pairs(inv) do
+            if not k:find("Plants") and not k:find("Pack") then
+                count = count + (type(v) == "number" and v or 1)
+            end
+        end
+        return count >= cap
+    end)
+    return ok and full or false
+end
+
 -- ═══════════════════════════════════════════
 -- STATE
 -- ═══════════════════════════════════════════
@@ -652,7 +671,7 @@ do
             pcall(function()
                 local collectables = getAllCollectables()
                 local hrp = getHRP()
-                if not hrp or #collectables == 0 then
+                if not hrp or #collectables == 0 or isBackpackFull() then
                     collecting = false
                     return
                 end
@@ -660,7 +679,7 @@ do
                 local origCF = hrp.CFrame
 
                 for _, c in ipairs(collectables) do
-                    if not State.autoCollect then break end
+                    if not State.autoCollect or isBackpackFull() then break end
                     pcall(function()
                         if State.tpCollect and c.position then
                             hrp.CFrame = CFrame.new(c.position)

@@ -755,10 +755,10 @@ do
                 local myGH = getMyGreenhouse()
                 if not myGH then planting = false return end
 
-                -- Find empty planters (not plantInside, no Grown child)
+                -- Find empty plantables (Planter, WoodFence, plots — anything with PlantInside attr)
                 local emptyPlanters = {}
                 for _, c in ipairs(myGH:GetChildren()) do
-                    if c.Name == "Planter" and c:IsA("Model") and not c:GetAttribute("PlantInside") then
+                    if c:IsA("Model") and c:GetAttribute("PlantInside") == false then
                         local cd
                         for _, d in ipairs(c:GetDescendants()) do
                             if d:IsA("ClickDetector") then cd = d break end

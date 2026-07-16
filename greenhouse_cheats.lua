@@ -739,15 +739,54 @@ do
     end))
 end
 
--- AUTO-PLANT (replant empty planters)
+-- AUTO-PLANT (replant empty planters via real mouse click)
 do
     local lastTick = 0
     local planting = false
+    local Camera = workspace.CurrentCamera
+
+    local function hideAllGuis()
+        local saved = {}
+        for _, sg in ipairs(LP.PlayerGui:GetChildren()) do
+            if sg:IsA("ScreenGui") then
+                saved[sg] = sg.Enabled
+                sg.Enabled = false
+            end
+        end
+        pcall(function()
+            for _, g in ipairs(gethui():GetChildren()) do
+                if g:IsA("ScreenGui") then
+                    saved[g] = g.Enabled
+                    g.Enabled = false
+                end
+            end
+        end)
+        return saved
+    end
+
+    local function restoreGuis(saved)
+        for sg, state in pairs(saved) do
+            pcall(function() sg.Enabled = state end)
+        end
+    end
+
+    local function clickWorldPart(part)
+        local camPos = part.Position + Vector3.new(0, 6, 4)
+        Camera.CFrame = CFrame.lookAt(camPos, part.Position)
+        task.wait(0.15)
+        local sp = Camera:WorldToScreenPoint(part.Position)
+        mousemoveabs(sp.X, sp.Y)
+        task.wait(0.05)
+        mouse1click()
+        task.wait(0.15)
+    end
+
     track(RunService.Heartbeat:Connect(function()
         local now = tick()
-        if now - lastTick < 5 then return end
+        if now - lastTick < 8 then return end
         lastTick = now
         if not State.autoPlant or planting then return end
+        if not isrbxactive() then return end -- needs window focus
         planting = true
 
         task.spawn(function()
@@ -755,46 +794,56 @@ do
                 local myGH = getMyGreenhouse()
                 if not myGH then planting = false return end
 
-                -- Find empty plantables (Planter, WoodFence, plots — anything with PlantInside attr)
+                -- Find empty plantables (Planter, WoodFence, plots)
                 local emptyPlanters = {}
                 for _, c in ipairs(myGH:GetChildren()) do
                     if c:IsA("Model") and c:GetAttribute("PlantInside") == false then
-                        local cd
-                        for _, d in ipairs(c:GetDescendants()) do
-                            if d:IsA("ClickDetector") then cd = d break end
-                        end
-                        if cd then
-                            table.insert(emptyPlanters, {model = c, cd = cd, number = c:GetAttribute("Number")})
+                        local dirt = c:FindFirstChild("Dirt") or c:FindFirstChildWhichIsA("BasePart")
+                        if dirt then
+                            table.insert(emptyPlanters, {model = c, part = dirt, number = c:GetAttribute("Number")})
                         end
                     end
                 end
 
                 if #emptyPlanters == 0 then planting = false return end
 
-                -- Enter plant mode
+                -- Save camera, TP near greenhouse, enter plant mode
+                local hrp = getHRP()
+                if not hrp then planting = false return end
+                local origCF = hrp.CFrame
+                local origCam = Camera.CFrame
+
                 local seed = State.plantSeed or "Buttercup"
                 ReplicatedStorage.PlantMode:FireServer(seed)
                 LP:SetAttribute("Planting", true)
-                task.wait(0.3)
+                task.wait(0.5)
+
+                -- Hide all GUIs so clicks hit 3D world
+                local saved = hideAllGuis()
+                task.wait(0.1)
 
                 -- Click each empty planter
                 for _, p in ipairs(emptyPlanters) do
-                    if not State.autoPlant then break end
-                    pcall(function()
-                        fireclickdetector(p.cd)
-                    end)
-                    task.wait(0.4)
+                    if not State.autoPlant or not isrbxactive() then break end
+                    hrp.CFrame = CFrame.new(p.part.Position + Vector3.new(0, 4, 3))
+                    task.wait(0.2)
+                    clickWorldPart(p.part)
+                    task.wait(0.5)
                 end
 
-                -- Exit plant mode
-                task.wait(0.3)
+                -- Restore GUIs, exit plant mode, return player
+                restoreGuis(saved)
+                task.wait(0.2)
                 ReplicatedStorage.ClosePlanting:FireServer()
                 LP:SetAttribute("Planting", false)
+                hrp.CFrame = origCF
+                Camera.CFrame = origCam
             end)
             planting = false
         end)
     end))
 end
+
 
 -- AUTO-QTE (Wildflower / Mushroom / BarTarget minigames)
 do

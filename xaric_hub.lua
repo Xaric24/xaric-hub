@@ -473,8 +473,15 @@ local function launchScript(entry)
     local ok, err = pcall(function()
         if executefile then
             executefile(filePath)
+        elseif dofile then
+            dofile(filePath)
         elseif loadfile then
-            loadfile(filePath)()
+            local fn, loadErr = loadfile(filePath)
+            if fn then
+                fn()
+            else
+                error(loadErr or "loadfile returned nil for " .. filePath)
+            end
         else
             loadstring(readfile(filePath))()
         end

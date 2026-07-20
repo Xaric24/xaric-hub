@@ -74,6 +74,55 @@ local function equipPickaxe()
     end
 end
 
+-- Ore value lookup ($/Ore from drill billboard data)
+local ORE_VALUES = {
+    ["Golden Ruby"]       = 900000,
+    ["Normal Ruby"]       = 450000,
+    ["Golden Amethyst"]   = 48000,
+    ["Normal Amethyst"]   = 24000,
+    ["Golden Silver"]     = 10800,
+    ["Normal Silver"]     = 5400,
+    ["Golden Iron"]       = 6600,
+    ["Normal Iron"]       = 3300,
+    ["Golden Coal"]       = 1800,
+    ["Normal Coal"]       = 900,
+    ["Golden Sandstone"]  = 1080,
+    ["Normal Sandstone"]  = 540,
+    ["Golden Stone"]      = 600,
+    ["Normal Stone"]      = 300,
+}
+
+local function getOreKey(ore)
+    local mutation = ore:GetAttribute("Mutation") or "Normal"
+    return mutation .. " " .. ore.Name
+end
+
+local function getOreValue(key)
+    return ORE_VALUES[key] or 0
+end
+
+local function getDrillOreKey(drill)
+    local billPart = drill:FindFirstChild("BillPart")
+    if billPart then
+        for _, t in ipairs(billPart:GetDescendants()) do
+            if t:IsA("TextLabel") and t.Text:find("Mines:") then
+                local oreName = t.Text:gsub("Mines: ", "")
+                return oreName
+            end
+        end
+    end
+    return "Nothing"
+end
+
+local function getDrillPrompt(drill)
+    for _, d in ipairs(drill:GetDescendants()) do
+        if d:IsA("ProximityPrompt") and d.Name == "PutOre" then
+            return d
+        end
+    end
+    return nil
+end
+
 -- ═══════════════════════════════════════════
 -- STATE
 -- ═══════════════════════════════════════════
@@ -85,6 +134,7 @@ local State = {
     autoUpgrade     = false,
     autoEquipBest   = false,
     autoRebirth     = false,
+    autoDrill       = false,
     speedHack       = false,
     speedMult       = 2,
     infiniteJump    = false,
@@ -164,6 +214,69 @@ FarmTab:CreateButton({
     end,
 })
 
+FarmTab:CreateSection("Drill Placement")
+
+FarmTab:CreateToggle({
+    Name = "Auto-Place Best Ores on Drills",
+    CurrentValue = false,
+    Flag = "AutoDrill",
+    Callback = function(v) State.autoDrill = v end,
+})
+
+FarmTab:CreateButton({
+    Name = "Place Best Ores Now",
+    Callback = function()
+        task.spawn(function()
+            pcall(function()
+                local plot = getPlot()
+                if not plot then return end
+                local drillsFolder = plot:FindFirstChild("Drills")
+                local oresFolder = plot:FindFirstChild("Ores")
+                if not drillsFolder or not oresFolder then return end
+
+                -- Build sorted list of available ores by value (best first)
+                local oreList = {}
+                for _, ore in ipairs(oresFolder:GetChildren()) do
+                    local key = getOreKey(ore)
+                    table.insert(oreList, {ore = ore, key = key, value = getOreValue(key)})
+                end
+                table.sort(oreList, function(a, b) return a.value > b.value end)
+
+                -- Build sorted list of drills by current value (worst first)
+                local drillList = {}
+                for _, drill in ipairs(drillsFolder:GetChildren()) do
+                    local prompt = getDrillPrompt(drill)
+                    if prompt then
+                        local drillOreKey = getDrillOreKey(drill)
+                        local drillVal = getOreValue(drillOreKey)
+                        table.insert(drillList, {drill = drill, prompt = prompt, key = drillOreKey, value = drillVal})
+                    end
+                end
+                table.sort(drillList, function(a, b) return a.value < b.value end)
+
+                -- Place best ores on worst drills
+                local oreIdx = 1
+                for _, dEntry in ipairs(drillList) do
+                    if oreIdx > #oreList then break end
+                    local bestOre = oreList[oreIdx]
+                    if bestOre.value > dEntry.value then
+                        local hrp = getHRP()
+                        if hrp and dEntry.prompt.Parent then
+                            hrp.CFrame = dEntry.prompt.Parent.CFrame * CFrame.new(0, 0, 2)
+                            task.wait(0.3)
+                            fireproximityprompt(dEntry.prompt)
+                            task.wait(0.5)
+                        end
+                        oreIdx = oreIdx + 1
+                    else
+                        break
+                    end
+                end
+            end)
+        end)
+    end,
+})
+
 FarmTab:CreateSection("Rolling")
 
 FarmTab:CreateToggle({
@@ -218,8 +331,11 @@ UpgradeTab:CreateButton({
     Name = "Max All Upgrades",
     Callback = function()
         task.spawn(function()
-            for _, upgName in ipairs(UPGRADE_NAMES) do
-                pcall(function() DoMaxUpgrade:FireServer(upgName) end)
+            for _ = 1, 20 do
+                for _, upgName in ipairs(UPGRADE_NAMES) do
+                    pcall(function() DoUpgrade:FireServer(upgName) end)
+                    pcall(function() DoMaxUpgrade:FireServer(upgName) end)
+                end
                 task.wait(0.1)
             end
         end)
@@ -477,8 +593,67 @@ do
         task.spawn(function()
             for _, upgName in ipairs(UPGRADE_NAMES) do
                 pcall(function() DoUpgrade:FireServer(upgName) end)
+                pcall(function() DoMaxUpgrade:FireServer(upgName) end)
                 task.wait(0.05)
             end
+        end)
+    end))
+end
+
+-- AUTO-DRILL (smart ore placement)
+do
+    local lastDrill = 0
+    track(RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - lastDrill < 10 then return end
+        lastDrill = now
+        if not State.autoDrill then return end
+        task.spawn(function()
+            pcall(function()
+                local plot = getPlot()
+                if not plot then return end
+                local drillsFolder = plot:FindFirstChild("Drills")
+                local oresFolder = plot:FindFirstChild("Ores")
+                if not drillsFolder or not oresFolder then return end
+
+                -- Build sorted ore list (best first)
+                local oreList = {}
+                for _, ore in ipairs(oresFolder:GetChildren()) do
+                    local key = getOreKey(ore)
+                    table.insert(oreList, {ore = ore, key = key, value = getOreValue(key)})
+                end
+                table.sort(oreList, function(a, b) return a.value > b.value end)
+
+                -- Build sorted drill list (worst first)
+                local drillList = {}
+                for _, drill in ipairs(drillsFolder:GetChildren()) do
+                    local prompt = getDrillPrompt(drill)
+                    if prompt then
+                        local drillOreKey = getDrillOreKey(drill)
+                        local drillVal = getOreValue(drillOreKey)
+                        table.insert(drillList, {drill = drill, prompt = prompt, key = drillOreKey, value = drillVal})
+                    end
+                end
+                table.sort(drillList, function(a, b) return a.value < b.value end)
+
+                local oreIdx = 1
+                for _, dEntry in ipairs(drillList) do
+                    if oreIdx > #oreList then break end
+                    local bestOre = oreList[oreIdx]
+                    if bestOre.value > dEntry.value then
+                        local hrp = getHRP()
+                        if hrp and dEntry.prompt.Parent then
+                            hrp.CFrame = dEntry.prompt.Parent.CFrame * CFrame.new(0, 0, 2)
+                            task.wait(0.3)
+                            fireproximityprompt(dEntry.prompt)
+                            task.wait(0.5)
+                        end
+                        oreIdx = oreIdx + 1
+                    else
+                        break
+                    end
+                end
+            end)
         end)
     end))
 end

@@ -13,6 +13,7 @@
       • 🌿 GreenThumb v1 — My Greenhouse!
       • ⭐ StarForge v1   — Make a Galaxy ✨
       • 🐺 Coyote v1      — San Diego Border RP
+      • ⛏️ CrushForge v1  — Build An Ore Crusher
       • 🔧 Cobalt GUI    — Universal Dev Tools
 ]]
 
@@ -123,6 +124,15 @@ local SCRIPTS = {
         color       = Color3.fromRGB(230, 180, 80),
     },
     {
+        name        = "CrushForge v1",
+        icon        = "⛏️",
+        file        = "orecrusher_cheats.lua",
+        description = "Build An Ore Crusher",
+        features    = {"Auto-Mine", "Auto-Sell", "Auto-Roll", "Auto-Upgrade"},
+        keywords    = {"ore", "crusher", "build an ore", "crushforge", "mine"},
+        color       = Color3.fromRGB(255, 165, 0),
+    },
+    {
         name        = "Cobalt GUI",
         icon        = "🔧",
         file        = "cobalt_gui.lua",
@@ -133,7 +143,7 @@ local SCRIPTS = {
     },
 }
 
-local BASE_PATH = "C:\\Users\\Xaric\\.gemini\\antigravity\\scratch\\exploit-gui\\"
+local GITHUB_RAW = "https://raw.githubusercontent.com/Xaric24/xaric-hub/master/"
 
 -- ═══════════════════════════════════════════
 -- GAME DETECTION
@@ -469,24 +479,18 @@ local function launchScript(entry)
     tw.Completed:Wait()
     ScreenGui:Destroy()
 
-    local filePath = BASE_PATH .. entry.file
-    print("[XaricHub] Loading " .. entry.name .. " from: " .. filePath)
+    local url = GITHUB_RAW .. entry.file
+    print("[XaricHub] Loading " .. entry.name .. " from: " .. url)
     local ok, err = pcall(function()
-        if executefile then
-            print("[XaricHub] Using executefile")
-            executefile(filePath)
-        elseif dofile then
-            print("[XaricHub] Using dofile")
-            dofile(filePath)
-        elseif readfile then
-            print("[XaricHub] Using readfile+loadstring")
-            local src = readfile(filePath)
-            if not src then error("readfile returned nil") end
-            local fn, compileErr = loadstring(src, entry.file)
-            if fn then fn() else error("Compile: " .. tostring(compileErr)) end
+        local src = game:HttpGet(url)
+        if not src or #src == 0 then
+            error("HttpGet returned empty response")
+        end
+        local fn, compileErr = loadstring(src, entry.file)
+        if fn then
+            fn()
         else
-            local fn, loadErr = loadfile(filePath)
-            if fn then fn() else error(tostring(loadErr)) end
+            error("Compile: " .. tostring(compileErr))
         end
     end)
     if not ok then

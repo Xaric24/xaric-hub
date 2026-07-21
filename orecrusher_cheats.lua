@@ -240,6 +240,7 @@ FarmTab:CreateButton({
                     local key = getOreKey(ore)
                     table.insert(oreList, {ore = ore, key = key, value = getOreValue(key)})
                 end
+                if #oreList == 0 then return end
                 table.sort(oreList, function(a, b) return a.value > b.value end)
 
                 -- Build sorted list of drills by current value (worst first)
@@ -622,6 +623,7 @@ do
                     local key = getOreKey(ore)
                     table.insert(oreList, {ore = ore, key = key, value = getOreValue(key)})
                 end
+                if #oreList == 0 then return end
                 table.sort(oreList, function(a, b) return a.value > b.value end)
 
                 -- Build sorted drill list (worst first)

@@ -135,6 +135,7 @@ local State = {
     autoEquipBest   = false,
     autoRebirth     = false,
     autoDrill       = false,
+    autoCollect     = false,
     speedHack       = false,
     speedMult       = 2,
     infiniteJump    = false,
@@ -195,6 +196,36 @@ FarmTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoEquipBest",
     Callback = function(v) State.autoEquipBest = v end,
+})
+
+FarmTab:CreateSection("Collecting")
+
+FarmTab:CreateToggle({
+    Name = "Auto-Collect Cash",
+    CurrentValue = false,
+    Flag = "AutoCollect",
+    Callback = function(v) State.autoCollect = v end,
+})
+
+FarmTab:CreateButton({
+    Name = "Collect Cash Now",
+    Callback = function()
+        task.spawn(function()
+            pcall(function()
+                local plot = getPlot()
+                if not plot then return end
+                local button = plot:FindFirstChild("Button")
+                if not button then return end
+                local zone = button:FindFirstChild("Zone") or button:FindFirstChild("Touch")
+                if not zone then return end
+                local hrp = getHRP()
+                if hrp then
+                    hrp.CFrame = zone.CFrame
+                    task.wait(0.5)
+                end
+            end)
+        end)
+    end,
 })
 
 FarmTab:CreateSection("Selling")
@@ -315,13 +346,23 @@ UpgradeTab:CreateToggle({
     Callback = function(v) State.autoUpgrade = v end,
 })
 
-local UPGRADE_NAMES = {"Speed", "Power", "Luck", "Conveyor", "RollSpeed", "NewDrill", "NewDrillSecondFloor", "NewPads", "2ndFloor"}
+local UPGRADE_IDS = {
+    {display = "Speed",            id = "speed"},
+    {display = "Power",            id = "power"},
+    {display = "Luck",             id = "luck"},
+    {display = "Conveyor",         id = "conveyor"},
+    {display = "Roll Speed",       id = "rollSpeed"},
+    {display = "New Drill",        id = "drills"},
+    {display = "2nd Floor Drill",  id = "drillsSecondFloor"},
+    {display = "New Pads",         id = "pads"},
+    {display = "2nd Floor",        id = "secondFloor"},
+}
 
-for _, upgName in ipairs(UPGRADE_NAMES) do
+for _, upg in ipairs(UPGRADE_IDS) do
     UpgradeTab:CreateButton({
-        Name = "Upgrade: " .. upgName,
+        Name = "Upgrade: " .. upg.display,
         Callback = function()
-            pcall(function() DoUpgrade:FireServer(upgName) end)
+            pcall(function() DoUpgrade:FireServer(upg.id) end)
         end,
     })
 end
@@ -333,9 +374,9 @@ UpgradeTab:CreateButton({
     Callback = function()
         task.spawn(function()
             for _ = 1, 20 do
-                for _, upgName in ipairs(UPGRADE_NAMES) do
-                    pcall(function() DoUpgrade:FireServer(upgName) end)
-                    pcall(function() DoMaxUpgrade:FireServer(upgName) end)
+                for _, upg in ipairs(UPGRADE_IDS) do
+                    pcall(function() DoUpgrade:FireServer(upg.id) end)
+                    pcall(function() DoMaxUpgrade:FireServer(upg.id) end)
                 end
                 task.wait(0.1)
             end
@@ -592,11 +633,36 @@ do
         lastUpgrade = now
         if not State.autoUpgrade then return end
         task.spawn(function()
-            for _, upgName in ipairs(UPGRADE_NAMES) do
-                pcall(function() DoUpgrade:FireServer(upgName) end)
-                pcall(function() DoMaxUpgrade:FireServer(upgName) end)
+            for _, upg in ipairs(UPGRADE_IDS) do
+                pcall(function() DoUpgrade:FireServer(upg.id) end)
+                pcall(function() DoMaxUpgrade:FireServer(upg.id) end)
                 task.wait(0.05)
             end
+        end)
+    end))
+end
+
+-- AUTO-COLLECT
+do
+    local lastCollect = 0
+    track(RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - lastCollect < 5 then return end
+        lastCollect = now
+        if not State.autoCollect then return end
+        task.spawn(function()
+            pcall(function()
+                local plot = getPlot()
+                if not plot then return end
+                local button = plot:FindFirstChild("Button")
+                if not button then return end
+                local zone = button:FindFirstChild("Zone") or button:FindFirstChild("Touch")
+                if not zone then return end
+                local hrp = getHRP()
+                if hrp then
+                    hrp.CFrame = zone.CFrame
+                end
+            end)
         end)
     end))
 end

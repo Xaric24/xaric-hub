@@ -262,10 +262,10 @@ FarmTab:CreateButton({
                     if bestOre.value > dEntry.value then
                         local hrp = getHRP()
                         if hrp and dEntry.prompt.Parent then
-                            hrp.CFrame = dEntry.prompt.Parent.CFrame * CFrame.new(0, 0, 2)
-                            task.wait(0.3)
-                            fireproximityprompt(dEntry.prompt)
-                            task.wait(0.5)
+                            hrp.CFrame = dEntry.prompt.Parent.CFrame * CFrame.new(0, 0, 1)
+                            task.wait(0.8)
+                            fireproximityprompt(dEntry.prompt, dEntry.prompt.HoldDuration)
+                            task.wait(1.5)
                         end
                         oreIdx = oreIdx + 1
                     else
@@ -643,10 +643,10 @@ do
                     if bestOre.value > dEntry.value then
                         local hrp = getHRP()
                         if hrp and dEntry.prompt.Parent then
-                            hrp.CFrame = dEntry.prompt.Parent.CFrame * CFrame.new(0, 0, 2)
-                            task.wait(0.3)
-                            fireproximityprompt(dEntry.prompt)
-                            task.wait(0.5)
+                            hrp.CFrame = dEntry.prompt.Parent.CFrame * CFrame.new(0, 0, 1)
+                            task.wait(0.8)
+                            fireproximityprompt(dEntry.prompt, dEntry.prompt.HoldDuration)
+                            task.wait(1.5)
                         end
                         oreIdx = oreIdx + 1
                     else

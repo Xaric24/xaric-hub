@@ -14,6 +14,7 @@
       • ⭐ StarForge v1   — Make a Galaxy ✨
       • 🐺 Coyote v1      — San Diego Border RP
       • ⛏️ CrushForge v1  — Build An Ore Crusher
+      • 🦠 Pathogen v1    — Parasite.exe
       • 🔧 Cobalt GUI    — Universal Dev Tools
 ]]
 
@@ -131,6 +132,15 @@ local SCRIPTS = {
         features    = {"Auto-Mine", "Auto-Sell", "Auto-Roll", "Auto-Upgrade"},
         keywords    = {"ore", "crusher", "build an ore", "crushforge", "mine"},
         color       = Color3.fromRGB(255, 165, 0),
+    },
+    {
+        name        = "Pathogen v1",
+        icon        = "🦠",
+        file        = "parasite_cheats.lua",
+        description = "Parasite.exe",
+        features    = {"Auto-Grow", "Auto-Attack", "Dummies", "Contracts"},
+        keywords    = {"parasite", "parasite.exe", "pathogen"},
+        color       = Color3.fromRGB(50, 200, 50),
     },
     {
         name        = "Cobalt GUI",

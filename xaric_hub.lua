@@ -15,6 +15,7 @@
       • 🐺 Coyote v1      — San Diego Border RP
       • ⛏️ CrushForge v1  — Build An Ore Crusher
       • 🦠 Pathogen v1    — Parasite.exe
+      • 🪓 Timber v1      — My Wood Farm
       • 🔧 Cobalt GUI    — Universal Dev Tools
 ]]
 
@@ -141,6 +142,15 @@ local SCRIPTS = {
         features    = {"Auto-Grow", "Auto-Attack", "Dummies", "Contracts"},
         keywords    = {"parasite", "parasite.exe", "pathogen"},
         color       = Color3.fromRGB(50, 200, 50),
+    },
+    {
+        name        = "Timber v1",
+        icon        = "🪓",
+        file        = "woodfarm_cheats.lua",
+        description = "My Wood Farm",
+        features    = {"Auto-Collect", "Auto-Sell", "Auto-Spin", "Auto-Equip"},
+        keywords    = {"wood", "farm", "my wood farm", "timber"},
+        color       = Color3.fromRGB(139, 69, 19),
     },
     {
         name        = "Cobalt GUI",

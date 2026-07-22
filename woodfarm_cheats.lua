@@ -88,6 +88,8 @@ local function getMoney()
     return money and tonumber(money.Value) or nil
 end
 
+local skippedOffers = {}
+
 local function getAnchorCFrame(instance)
     if not instance then return nil end
     if instance:IsA("BasePart") then return instance.CFrame end
@@ -285,6 +287,8 @@ task.spawn(function()
                                 if bought then break end
                                 if d:IsA("ProximityPrompt") and d.Enabled and tostring(d.ActionText):find("Buy") then
                                     local objectText = tostring(d.ObjectText)
+                                    local offerKey = stand.Name .. "|" .. objectText
+                                    if (skippedOffers[offerKey] or 0) <= os.clock() then
                                     local tier = 0
                                     local Tiers = {"WoodenAxe","ChippedStoneAxe","RustyIronAxe","SteelAxe","GoldenAxe","ObsidianAxe","CrystalAxe","FrozenCrystalAxe","EmeraldAxe","RubyAxe","IcyAxe","PoisonAxe","NecromancerAxe","DragonboneAxe","ShadowAxe","FuturisticAxe","SteampunkAxe","LavaAxe","CandyAxe","CosmicAxe","GodlyAxe","SerratedAxe","RitualAxe","ElvenAxe","LichsAxe","GalaxyAxe"}
                                     local DisplayNames = {ShadowAxe="Shadow",DragonboneAxe="Dragonbone",CandyAxe="Candy",SteampunkAxe="Steampunk",RitualAxe="Ritual",ChippedStoneAxe="Stone",IcyAxe="Icy",GodlyAxe="Godly",RustyIronAxe="Iron",NecromancerAxe="Necro",WoodenAxe="Wood",CosmicAxe="Cosmic",ObsidianAxe="Obsidian",SteelAxe="Steel",PoisonAxe="Poison",CrystalAxe="Crystal",FrozenCrystalAxe="Frozen Crystal",ElvenAxe="Elven",SerratedAxe="Serrated",GoldenAxe="Gold",EmeraldAxe="Emerald",LavaAxe="Lava",GalaxyAxe="Galaxy",FuturisticAxe="Futuristic",RubyAxe="Ruby",LichsAxe="Lich's"}
@@ -298,14 +302,16 @@ task.spawn(function()
                                     
                                     if tier >= State.minSpinTier then
                                         if moveToAnchor(hrp, spinAnchor, 3) then
-                                            local moneyBefore = getMoney()
                                             task.wait(0.3)
                                             firePrompt(d)
-                                            task.wait(math.max((d.HoldDuration or 0) + 0.4, 0.75))
-                                            local moneyAfter = getMoney()
-                                            bought = moneyBefore ~= nil and moneyAfter ~= nil and moneyAfter < moneyBefore
+                                            -- Prompt activation is the game's purchase request.  Do not wait
+                                            -- for leaderstats replication, which can arrive after the next spin.
+                                            -- Cool down this exact offer so a rejected/stale stand cannot trap us.
+                                            skippedOffers[offerKey] = os.clock() + 8
+                                            bought = true
                                             break
                                         end
+                                    end
                                     end
                                 end
                             end

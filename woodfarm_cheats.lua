@@ -28,6 +28,11 @@ local WS = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LP = Players.LocalPlayer
+local Env = getgenv()
+
+if Env._timberCleanup then pcall(Env._timberCleanup) end
+Env._timberSession = (Env._timberSession or 0) + 1
+local SessionId = Env._timberSession
 
 local State = {
     autoCollect = false,
@@ -45,9 +50,14 @@ local State = {
 -- Connections
 local connections = {}
 local function track(conn) table.insert(connections, conn) return conn end
-local function clean() for _, c in ipairs(connections) do c:Disconnect() end end
-
-getgenv()._timberLoaded = true
+local function isAlive() return Env._timberSession == SessionId end
+local function clean()
+    if not isAlive() then return end
+    Env._timberSession = Env._timberSession + 1
+    for _, c in ipairs(connections) do pcall(function() c:Disconnect() end) end
+    connections = {}
+end
+Env._timberCleanup = clean
 
 -- Utility: Find my plot
 local function getMyPlot()
@@ -63,10 +73,23 @@ end
 
 local function firePrompt(prompt)
     if prompt and prompt:IsA("ProximityPrompt") then
-        task.spawn(function()
-            fireproximityprompt(prompt, prompt.HoldDuration or 0)
-        end)
+        pcall(fireproximityprompt, prompt, prompt.HoldDuration or 0)
     end
+end
+
+local function getAnchorCFrame(instance)
+    if not instance then return nil end
+    if instance:IsA("BasePart") then return instance.CFrame end
+    if instance:IsA("Model") then return instance:GetPivot() end
+    local part = instance:FindFirstChildWhichIsA("BasePart", true)
+    return part and part.CFrame or nil
+end
+
+local function moveToAnchor(hrp, anchor, height)
+    local cf = getAnchorCFrame(anchor)
+    if not cf then return false end
+    hrp.CFrame = cf + Vector3.new(0, height or 3, 0)
+    return true
 end
 
 -- ═══════════════════════════════════════════
@@ -159,10 +182,7 @@ UtilsTab:CreateButton({
         local plot = getMyPlot()
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if plot and hrp then
-            local spawnPt = plot:FindFirstChild("SpawnPoint")
-            if spawnPt then
-                hrp.CFrame = spawnPt.CFrame + Vector3.new(0, 5, 0)
-            end
+            moveToAnchor(hrp, plot:FindFirstChild("SpawnPoint"), 5)
         end
     end,
 })
@@ -181,7 +201,7 @@ UtilsTab:CreateButton({
 -- Auto Collect / Sell Loop (requires TP)
 task.spawn(function()
     while task.wait(State.tpSpeed) do
-        if not getgenv()._timberLoaded then break end
+        if not isAlive() then break end
         
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         local plot = getMyPlot()
@@ -190,8 +210,7 @@ task.spawn(function()
             -- Collect
             if State.autoCollect then
                 local holder = plot:FindFirstChild("WoodHolder", true)
-                if holder then
-                    hrp.CFrame = holder.CFrame * CFrame.new(0, 2, 0)
+                if holder and moveToAnchor(hrp, holder, 2) then
                     task.wait(0.3)
                     for _, d in ipairs(holder:GetDescendants()) do
                         if d:IsA("ProximityPrompt") then firePrompt(d) end
@@ -205,8 +224,7 @@ task.spawn(function()
             -- Sell
             if State.autoSell then
                 local seller = plot:FindFirstChild("SellAnchor", true)
-                if seller then
-                    hrp.CFrame = seller.CFrame * CFrame.new(0, 2, 0)
+                if seller and moveToAnchor(hrp, seller, 2) then
                     task.wait(0.3)
                     for _, d in ipairs(seller:GetDescendants()) do
                         if d:IsA("ProximityPrompt") then firePrompt(d) end
@@ -222,8 +240,7 @@ task.spawn(function()
                 local claimMoney = plot:FindFirstChild("ClaimMoney", true)
                 if claimMoney then
                     local surface = claimMoney:FindFirstChild("Surface") or claimMoney:FindFirstChild("Part")
-                    if surface then
-                        hrp.CFrame = surface.CFrame + Vector3.new(0, 3, 0)
+                    if surface and moveToAnchor(hrp, surface, 3) then
                         task.wait(0.2)
                         firetouchinterest(hrp, surface, 0)
                         task.wait(0.1)
@@ -243,11 +260,13 @@ task.spawn(function()
                 local stands = plot:FindFirstChild("Stands", true) or plot:FindFirstChild("Stand", true)
                 if stands then
                     for _, stand in ipairs(stands:GetChildren()) do
+                        if bought then break end
                         local spinAnchor = stand:FindFirstChild("SpinAnchor")
                         if spinAnchor then
                             for _, d in ipairs(spinAnchor:GetDescendants()) do
-                                if d:IsA("ProximityPrompt") and d.ActionText:find("Buy") then
-                                    local objectText = d.ObjectText
+                                if bought then break end
+                                if d:IsA("ProximityPrompt") and tostring(d.ActionText):find("Buy") then
+                                    local objectText = tostring(d.ObjectText)
                                     local tier = 0
                                     local Tiers = {"WoodenAxe","ChippedStoneAxe","RustyIronAxe","SteelAxe","GoldenAxe","ObsidianAxe","CrystalAxe","EmeraldAxe","RubyAxe","IcyAxe","PoisonAxe","NecromancerAxe","DragonboneAxe","ShadowAxe","FuturisticAxe","SteampunkAxe","LavaAxe","CandyAxe","CosmicAxe","GodlyAxe","SerratedAxe","RitualAxe","ElvenAxe","LichsAxe","GalaxyAxe"}
                                     local DisplayNames = {ShadowAxe="Shadow",DragonboneAxe="Dragonbone",CandyAxe="Candy",SteampunkAxe="Steampunk",RitualAxe="Ritual",ChippedStoneAxe="Stone",IcyAxe="Icy",GodlyAxe="Godly",RustyIronAxe="Iron",NecromancerAxe="Necro",WoodenAxe="Wood",CosmicAxe="Cosmic",ObsidianAxe="Obsidian",SteelAxe="Steel",PoisonAxe="Poison",CrystalAxe="Crystal",ElvenAxe="Elven",SerratedAxe="Serrated",GoldenAxe="Gold",EmeraldAxe="Emerald",LavaAxe="Lava",GalaxyAxe="Galaxy",FuturisticAxe="Futuristic",RubyAxe="Ruby",LichsAxe="Lich's"}
@@ -260,10 +279,12 @@ task.spawn(function()
                                     end
                                     
                                     if tier >= State.minSpinTier then
-                                        hrp.CFrame = spinAnchor.CFrame + Vector3.new(0, 3, 0)
-                                        task.wait(0.3)
-                                        firePrompt(d)
-                                        bought = true
+                                        if moveToAnchor(hrp, spinAnchor, 3) then
+                                            task.wait(0.3)
+                                            firePrompt(d)
+                                            bought = true
+                                            break
+                                        end
                                     end
                                 end
                             end
@@ -274,8 +295,7 @@ task.spawn(function()
                 -- If we didn't buy anything, pull the lever to spin again
                 if not bought then
                     local lever = plot:FindFirstChild("LeverAnchor", true)
-                    if lever then
-                        hrp.CFrame = lever.CFrame + Vector3.new(0, 3, 0)
+                    if lever and moveToAnchor(hrp, lever, 3) then
                         task.wait(0.3)
                         for _, d in ipairs(lever:GetDescendants()) do
                             if d:IsA("ProximityPrompt") then firePrompt(d) end
@@ -288,19 +308,21 @@ task.spawn(function()
 end)
 
 -- Background Loops (no TP required)
+local lastStumpBuy, lastEquip, lastChipperUpgrade = 0, 0, 0
 track(RunService.Heartbeat:Connect(function()
-    if math.random() > 0.05 then return end -- throttle
-    
-    if State.autoBuyStump then
+    if not isAlive() then return end
+    local now = os.clock()
+    if State.autoBuyStump and now - lastStumpBuy >= 5 then
         pcall(function() RS.StumpShopBuy:FireServer(State.stumpTier) end)
+        lastStumpBuy = now
     end
-    
-    if State.autoEquip then
+    if State.autoEquip and now - lastEquip >= 3 then
         pcall(function() RS.EquipBest:FireServer() end)
+        lastEquip = now
     end
-    
-    if State.autoUpgradeChipper then
+    if State.autoUpgradeChipper and now - lastChipperUpgrade >= 5 then
         pcall(function() RS.ChipperAction:FireServer("upgrade") end)
+        lastChipperUpgrade = now
     end
 end))
 

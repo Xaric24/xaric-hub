@@ -26,6 +26,7 @@ local State = {
     autoCollect = false,
     autoSell = false,
     autoSpin = false,
+    minSpinTier = 1,
     autoEquip = false,
     autoUpgradeChipper = false,
     autoClaimMoney = false,
@@ -85,6 +86,18 @@ MainTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoSpin",
     Callback = function(v) State.autoSpin = v end,
+})
+
+MainTab:CreateSlider({
+    Name = "Min Axe Tier To Buy (1-25)",
+    Range = {1, 25},
+    Increment = 1,
+    Suffix = "Tier",
+    CurrentValue = 1,
+    Flag = "MinSpinTier",
+    Callback = function(Value)
+        State.minSpinTier = Value
+    end,
 })
 
 MainTab:CreateToggle({
@@ -215,14 +228,51 @@ task.spawn(function()
             -- Wait before next action
             if State.autoClaimMoney and State.autoSpin then task.wait(State.tpSpeed / 2) end
             
-            -- Spin (requires TP to lever)
+            
+            -- Spin (requires TP to lever and stand)
             if State.autoSpin then
-                local lever = plot:FindFirstChild("LeverAnchor", true)
-                if lever then
-                    hrp.CFrame = lever.CFrame + Vector3.new(0, 3, 0)
-                    task.wait(0.3)
-                    for _, d in ipairs(lever:GetDescendants()) do
-                        if d:IsA("ProximityPrompt") then firePrompt(d) end
+                -- Check if there's a good axe to buy first
+                local bought = false
+                local stands = plot:FindFirstChild("Stands", true) or plot:FindFirstChild("Stand", true)
+                if stands then
+                    for _, stand in ipairs(stands:GetChildren()) do
+                        local spinAnchor = stand:FindFirstChild("SpinAnchor")
+                        if spinAnchor then
+                            for _, d in ipairs(spinAnchor:GetDescendants()) do
+                                if d:IsA("ProximityPrompt") and d.ActionText:find("Buy") then
+                                    local objectText = d.ObjectText
+                                    local tier = 0
+                                    local Tiers = {"WoodenAxe","ChippedStoneAxe","RustyIronAxe","SteelAxe","GoldenAxe","ObsidianAxe","CrystalAxe","EmeraldAxe","RubyAxe","IcyAxe","PoisonAxe","NecromancerAxe","DragonboneAxe","ShadowAxe","FuturisticAxe","SteampunkAxe","LavaAxe","CandyAxe","CosmicAxe","GodlyAxe","SerratedAxe","RitualAxe","ElvenAxe","LichsAxe","GalaxyAxe"}
+                                    local DisplayNames = {ShadowAxe="Shadow",DragonboneAxe="Dragonbone",CandyAxe="Candy",SteampunkAxe="Steampunk",RitualAxe="Ritual",ChippedStoneAxe="Stone",IcyAxe="Icy",GodlyAxe="Godly",RustyIronAxe="Iron",NecromancerAxe="Necro",WoodenAxe="Wood",CosmicAxe="Cosmic",ObsidianAxe="Obsidian",SteelAxe="Steel",PoisonAxe="Poison",CrystalAxe="Crystal",ElvenAxe="Elven",SerratedAxe="Serrated",GoldenAxe="Gold",EmeraldAxe="Emerald",LavaAxe="Lava",GalaxyAxe="Galaxy",FuturisticAxe="Futuristic",RubyAxe="Ruby",LichsAxe="Lich's"}
+                                    
+                                    for i, tierName in ipairs(Tiers) do
+                                        local dn = DisplayNames[tierName]
+                                        if dn and objectText:find(dn) then
+                                            tier = i
+                                        end
+                                    end
+                                    
+                                    if tier >= State.minSpinTier then
+                                        hrp.CFrame = spinAnchor.CFrame + Vector3.new(0, 3, 0)
+                                        task.wait(0.3)
+                                        firePrompt(d)
+                                        bought = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- If we didn't buy anything, pull the lever to spin again
+                if not bought then
+                    local lever = plot:FindFirstChild("LeverAnchor", true)
+                    if lever then
+                        hrp.CFrame = lever.CFrame + Vector3.new(0, 3, 0)
+                        task.wait(0.3)
+                        for _, d in ipairs(lever:GetDescendants()) do
+                            if d:IsA("ProximityPrompt") then firePrompt(d) end
+                        end
                     end
                 end
             end

@@ -112,7 +112,7 @@ getgenv()._pathogenState = State
 -- UI LIBRARY (Rayfield)
 -- ═══════════════════════════════════════════
 local function loadRayfield()
-    local ok, source = pcall(game.HttpGet, game, "https://sirius.menu/rayfield")
+    local ok, source = pcall(game.HttpGet, game, "https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/5f83e2300acfd8e39d543eef09c7e55d45eda9a1/source.lua")
     assert(ok and type(source) == "string" and #source > 0, "Unable to download Rayfield")
     local chunk, compileError = loadstring(source)
     assert(chunk, "Rayfield compile failed: " .. tostring(compileError))

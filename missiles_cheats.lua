@@ -5,6 +5,9 @@
     ╚═══════════════════════════════════════════════════════════╝
 ]]
 
+local Env = (getgenv and getgenv()) or _G
+if Env._warheadCleanup then pcall(Env._warheadCleanup) end
+
 -- Cleanup (destroy ALL old WarheadCheats GUIs)
 pcall(function()
     for _, desc in ipairs(game:GetService("CoreGui"):GetDescendants()) do
@@ -89,7 +92,56 @@ local State = {
     jumpPower     = 50,
     fireDelay     = 1.5,
 }
-if getgenv then getgenv()._warheadState = State end
+Env._warheadState = State
+local connections = {}
+local function track(connection)
+    table.insert(connections, connection)
+    return connection
+end
+
+local savedHumanoid
+local savedCollision = {}
+
+local function restoreNoclip()
+    for part, canCollide in pairs(savedCollision) do
+        if part and part.Parent then part.CanCollide = canCollide end
+    end
+    table.clear(savedCollision)
+end
+
+local function restoreSpeed()
+    if savedHumanoid and savedHumanoid.humanoid and savedHumanoid.humanoid.Parent then
+        savedHumanoid.humanoid.WalkSpeed = savedHumanoid.walkSpeed
+        savedHumanoid.humanoid.JumpPower = savedHumanoid.jumpPower
+    end
+    savedHumanoid = nil
+end
+
+local function restoreMovement()
+    restoreSpeed()
+    restoreNoclip()
+end
+
+local function applySpeed()
+    local humanoid = getHumanoid()
+    if not humanoid then return end
+    if not savedHumanoid then
+        savedHumanoid = {humanoid = humanoid, walkSpeed = humanoid.WalkSpeed, jumpPower = humanoid.JumpPower}
+    end
+    humanoid.WalkSpeed = State.walkSpeed
+    humanoid.JumpPower = State.jumpPower
+end
+
+local function applyNoclip()
+    local character = LocalPlayer.Character
+    if not character then return end
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if savedCollision[part] == nil then savedCollision[part] = part.CanCollide end
+            part.CanCollide = false
+        end
+    end
+end
 
 -- ═══════════════════════════════════════════
 -- THEME (Military dark green)
@@ -158,7 +210,7 @@ local statusLabel = create("TextLabel",{
 local btnClose = create("TextButton",{Size=UDim2.fromOffset(26,20),Position=UDim2.new(1,-34,0.5,-10),BackgroundColor3=T.Red,BackgroundTransparency=0.7,Text="✕",FontFace=FNT_B,TextSize=11,TextColor3=T.Red,ZIndex=11,Parent=topbar})
 corner(btnClose,4)
 btnClose.MouseButton1Click:Connect(function()
-    tw(main,TW,{Size=UDim2.fromOffset(0,0)}); task.wait(0.2); gui:Destroy()
+    tw(main,TW,{Size=UDim2.fromOffset(0,0)}); task.wait(0.2); Env._warheadCleanup()
 end)
 
 -- Drag
@@ -169,12 +221,12 @@ topbar.InputBegan:Connect(function(input)
         input.Changed:Connect(function() if input.UserInputState==Enum.UserInputState.End then dragging=false end end)
     end
 end)
-UserInputService.InputChanged:Connect(function(input)
+track(UserInputService.InputChanged:Connect(function(input)
     if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then
         local d=input.Position-dragStart
         main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
     end
-end)
+end))
 
 -- Scroll area
 local scroll = create("ScrollingFrame",{
@@ -573,41 +625,31 @@ end)
 -- SPEED HACK / NOCLIP / ANTI-AFK
 task.spawn(function()
     while gui.Parent do
-        local hum = getHumanoid()
-        if hum then
-            if State.speedHack then
-                hum.WalkSpeed = State.walkSpeed
-                hum.JumpPower = State.jumpPower
-            end
-        end
+        if State.speedHack then applySpeed() else restoreSpeed() end
         task.wait(0.2)
     end
+    restoreMovement()
 end)
 
 -- Noclip
-RunService.Stepped:Connect(function()
+track(RunService.Stepped:Connect(function()
     if State.noclip then
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
+        applyNoclip()
+    else
+        restoreNoclip()
     end
-end)
+end))
 
 -- Anti-AFK
 local vu = game:GetService("VirtualUser")
 if vu then
-    LocalPlayer.Idled:Connect(function()
+    track(LocalPlayer.Idled:Connect(function()
         if State.antiAfk then
             vu:CaptureController()
             vu:ClickButton2(Vector2.new())
             print("[Warhead] Anti-AFK triggered")
         end
-    end)
+    end))
 end
 
 -- ESP
@@ -668,12 +710,23 @@ end)
 -- ═══════════════════════════════════════════
 -- TOGGLE (RightControl)
 -- ═══════════════════════════════════════════
-UserInputService.InputBegan:Connect(function(input, gp)
+track(UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.RightControl then
         main.Visible = not main.Visible
     end
-end)
+end))
+
+Env._warheadCleanup = function()
+    for key, value in pairs(State) do
+        if typeof(value) == "boolean" then State[key] = false end
+    end
+    restoreMovement()
+    for _, connection in ipairs(connections) do pcall(function() connection:Disconnect() end) end
+    table.clear(connections)
+    if Env._warheadState == State then Env._warheadState = nil end
+    pcall(function() gui:Destroy() end)
+end
 
 -- ═══════════════════════════════════════════
 -- INTRO

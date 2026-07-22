@@ -46,7 +46,8 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local RunService         = game:GetService("RunService")
 local LP = Players.LocalPlayer
 
-local HUB_VERSION = "2.0"
+local HUB_VERSION = "2.0.1"
+local HUB_RELEASE = "v2.0.1"
 local autoLaunchCancelled = false
 
 -- ═══════════════════════════════════════════
@@ -163,7 +164,8 @@ local SCRIPTS = {
     },
 }
 
-local GITHUB_RAW = "https://raw.githubusercontent.com/Xaric24/xaric-hub/master/"
+-- Keep module loads on the tested release selected by this launcher.
+local GITHUB_RAW = "https://raw.githubusercontent.com/Xaric24/xaric-hub/" .. HUB_RELEASE .. "/"
 
 -- ═══════════════════════════════════════════
 -- GAME DETECTION
@@ -492,29 +494,24 @@ local function launchScript(entry)
         statusLabel.TextColor3 = T.Yellow
     end
 
-    task.wait(0.3)
-    local tw = TweenService:Create(MainFrame, TWEEN_CLOSE, {Size = UDim2.new(0, FRAME_W, 0, 0)})
-    TweenService:Create(Backdrop, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-    tw:Play()
-    tw.Completed:Wait()
-    ScreenGui:Destroy()
-
     local url = GITHUB_RAW .. entry.file
     print("[XaricHub] Loading " .. entry.name .. " from: " .. url)
-    local ok, err = pcall(function()
+    local ok, loadedOrError = pcall(function()
         local src = game:HttpGet(url)
         if not src or #src == 0 then
             error("HttpGet returned empty response")
         end
         local fn, compileErr = loadstring(src, entry.file)
-        if fn then
-            fn()
-        else
-            error("Compile: " .. tostring(compileErr))
-        end
+        if not fn then error("Compile: " .. tostring(compileErr)) end
+        return fn
     end)
     if not ok then
+        local err = loadedOrError
         warn("[XaricHub] Failed to load " .. entry.name .. ": " .. tostring(err))
+        if statusLabel then
+            statusLabel.Text = "Load failed. Select a script to retry."
+            statusLabel.TextColor3 = T.Red
+        end
         pcall(function()
             game:GetService("StarterGui"):SetCore("SendNotification", {
                 Title = "XaricHub Error",
@@ -522,9 +519,28 @@ local function launchScript(entry)
                 Duration = 8,
             })
         end)
-    else
-        print("[XaricHub] " .. entry.name .. " loaded OK")
+        return
     end
+
+    if statusLabel then
+        statusLabel.Text = "Launching " .. entry.name .. "..."
+    end
+    local ran, err = pcall(loadedOrError)
+    if not ran then
+        warn("[XaricHub] Failed to launch " .. entry.name .. ": " .. tostring(err))
+        if statusLabel then
+            statusLabel.Text = "Launch failed. Select a script to retry."
+            statusLabel.TextColor3 = T.Red
+        end
+        return
+    end
+
+    local tw = TweenService:Create(MainFrame, TWEEN_CLOSE, {Size = UDim2.new(0, FRAME_W, 0, 0)})
+    TweenService:Create(Backdrop, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    tw:Play()
+    tw.Completed:Wait()
+    ScreenGui:Destroy()
+    print("[XaricHub] " .. entry.name .. " loaded OK")
 end
 
 local function createCard(entry, idx)

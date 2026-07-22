@@ -5,7 +5,7 @@ Xaric Hub is a Roblox script hub with game detection, a searchable launcher, and
 ## Launch the Hub
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Xaric24/xaric-hub/master/xaric_hub.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Xaric24/xaric-hub/v2.0.1/xaric_hub.lua"))()
 ```
 
 For a local checkout, execute `xaric_hub.lua` from your executor workspace instead.
@@ -41,6 +41,12 @@ For a local checkout, execute `xaric_hub.lua` from your executor workspace inste
 - Local-file loading when available, with GitHub fallback
 - Clear load errors for unavailable or malformed scripts
 - Protected UI loading for Rayfield-based modules
+- Version-pinned module loading with retryable launch failures
+
+## Compatibility
+
+- Requires an executor that supports `loadstring`, `game:HttpGet`, `getgenv`, and protected UI parenting (`gethui` or `CoreGui`).
+- Game updates can change remote names, module paths, and UI layouts. If a module fails, reopen the hub and select it again to retain the displayed error.
 
 ## Timber v1 Notes
 

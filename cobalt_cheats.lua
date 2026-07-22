@@ -6,6 +6,9 @@
     ╚═══════════════════════════════════════════════════════════╝
 ]]
 
+local Env = (getgenv and getgenv()) or _G
+if Env._cobaltCleanup then pcall(Env._cobaltCleanup) end
+
 -- Cleanup (destroy ALL old CobaltCheats GUIs everywhere)
 pcall(function()
     for _, desc in ipairs(game:GetService("CoreGui"):GetDescendants()) do
@@ -186,7 +189,22 @@ local State = {
     jumpPower     = 50,
     trainInterval = 0.1,
 }
-if getgenv then getgenv()._cobaltState = State end
+Env._cobaltState = State
+local connections = {}
+local function track(connection)
+    table.insert(connections, connection)
+    return connection
+end
+
+local savedHumanoid
+local savedCollision = {}
+
+local function restoreNoclip()
+    for part, canCollide in pairs(savedCollision) do
+        if part and part.Parent then part.CanCollide = canCollide end
+    end
+    table.clear(savedCollision)
+end
 
 -- ═══════════════════════════════════════════
 -- THEME
@@ -230,6 +248,44 @@ local function getChar() return LocalPlayer.Character or LocalPlayer.CharacterAd
 local function getHRP() local c=getChar(); return c and c:FindFirstChild("HumanoidRootPart") end
 local function getHum() local c=getChar(); return c and c:FindFirstChildWhichIsA("Humanoid") end
 
+local function applySpeed()
+    local humanoid = getHum()
+    if not humanoid then return end
+    if not savedHumanoid then
+        savedHumanoid = {
+            humanoid = humanoid,
+            walkSpeed = humanoid.WalkSpeed,
+            jumpPower = humanoid.JumpPower,
+        }
+    end
+    humanoid.WalkSpeed = State.walkSpeed
+    humanoid.JumpPower = State.jumpPower
+end
+
+local function restoreSpeed()
+    if savedHumanoid and savedHumanoid.humanoid and savedHumanoid.humanoid.Parent then
+        savedHumanoid.humanoid.WalkSpeed = savedHumanoid.walkSpeed
+        savedHumanoid.humanoid.JumpPower = savedHumanoid.jumpPower
+    end
+    savedHumanoid = nil
+end
+
+local function restoreMovement()
+    restoreSpeed()
+    restoreNoclip()
+end
+
+local function applyNoclip()
+    local character = LocalPlayer.Character
+    if not character then return end
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if savedCollision[part] == nil then savedCollision[part] = part.CanCollide end
+            part.CanCollide = false
+        end
+    end
+end
+
 -- ═══════════════════════════════════════════
 -- GUI SETUP
 -- ═══════════════════════════════════════════
@@ -265,7 +321,7 @@ local statusLabel = create("TextLabel",{
 local btnClose = create("TextButton",{Size=UDim2.fromOffset(26,20),Position=UDim2.new(1,-34,0.5,-10),BackgroundColor3=T.Red,BackgroundTransparency=0.7,Text="✕",FontFace=FNT_B,TextSize=11,TextColor3=T.Red,ZIndex=11,Parent=topbar})
 corner(btnClose,4)
 btnClose.MouseButton1Click:Connect(function()
-    tw(main,TW,{Size=UDim2.fromOffset(0,0)}); task.wait(0.2); gui:Destroy()
+    tw(main,TW,{Size=UDim2.fromOffset(0,0)}); task.wait(0.2); Env._cobaltCleanup()
 end)
 
 -- Drag
@@ -276,12 +332,12 @@ topbar.InputBegan:Connect(function(input)
         input.Changed:Connect(function() if input.UserInputState==Enum.UserInputState.End then dragging=false end end)
     end
 end)
-UserInputService.InputChanged:Connect(function(input)
+track(UserInputService.InputChanged:Connect(function(input)
     if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then
         local d=input.Position-dragStart
         main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
     end
-end)
+end))
 
 -- Scroll area
 local scroll = create("ScrollingFrame",{
@@ -847,27 +903,23 @@ end)
 task.spawn(function()
     while gui.Parent do
         if State.speedHack then
-            local h = getHum()
-            if h then
-                h.WalkSpeed = State.walkSpeed
-                h.JumpPower = State.jumpPower
-            end
+            applySpeed()
+        else
+            restoreSpeed()
         end
         task.wait(0.3)
     end
+    restoreSpeed()
 end)
 
 -- NOCLIP
-RunService.Stepped:Connect(function()
+track(RunService.Stepped:Connect(function()
     if State.noclip then
-        local c = LocalPlayer.Character
-        if c then
-            for _, p in ipairs(c:GetDescendants()) do
-                if p:IsA("BasePart") then p.CanCollide = false end
-            end
-        end
+        applyNoclip()
+    else
+        restoreNoclip()
     end
-end)
+end))
 
 -- ANTI-AFK
 task.spawn(function()
@@ -888,12 +940,23 @@ end)
 -- ═══════════════════════════════════════════
 -- TOGGLE (RightControl)
 -- ═══════════════════════════════════════════
-UserInputService.InputBegan:Connect(function(input, gp)
+track(UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.RightControl then
         main.Visible = not main.Visible
     end
-end)
+end))
+
+Env._cobaltCleanup = function()
+    for key, value in pairs(State) do
+        if typeof(value) == "boolean" then State[key] = false end
+    end
+    restoreMovement()
+    for _, connection in ipairs(connections) do pcall(function() connection:Disconnect() end) end
+    table.clear(connections)
+    if Env._cobaltState == State then Env._cobaltState = nil end
+    pcall(function() gui:Destroy() end)
+end
 
 -- ═══════════════════════════════════════════
 -- INTRO

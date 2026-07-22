@@ -88,6 +88,10 @@ local function getMoney()
     return money and tonumber(money.Value) or nil
 end
 
+local function getBestAxeTier()
+    return tonumber(LP:GetAttribute("TopRarity")) or 0
+end
+
 local skippedOffers = {}
 
 local function getAnchorCFrame(instance)
@@ -290,8 +294,8 @@ task.spawn(function()
                                     local offerKey = stand.Name .. "|" .. objectText
                                     if (skippedOffers[offerKey] or 0) <= os.clock() then
                                     local tier = 0
-                                    local Tiers = {"WoodenAxe","ChippedStoneAxe","RustyIronAxe","SteelAxe","GoldenAxe","ObsidianAxe","CrystalAxe","FrozenCrystalAxe","EmeraldAxe","RubyAxe","IcyAxe","PoisonAxe","NecromancerAxe","DragonboneAxe","ShadowAxe","FuturisticAxe","SteampunkAxe","LavaAxe","CandyAxe","CosmicAxe","GodlyAxe","SerratedAxe","RitualAxe","ElvenAxe","LichsAxe","GalaxyAxe"}
-                                    local DisplayNames = {ShadowAxe="Shadow",DragonboneAxe="Dragonbone",CandyAxe="Candy",SteampunkAxe="Steampunk",RitualAxe="Ritual",ChippedStoneAxe="Stone",IcyAxe="Icy",GodlyAxe="Godly",RustyIronAxe="Iron",NecromancerAxe="Necro",WoodenAxe="Wood",CosmicAxe="Cosmic",ObsidianAxe="Obsidian",SteelAxe="Steel",PoisonAxe="Poison",CrystalAxe="Crystal",FrozenCrystalAxe="Frozen Crystal",ElvenAxe="Elven",SerratedAxe="Serrated",GoldenAxe="Gold",EmeraldAxe="Emerald",LavaAxe="Lava",GalaxyAxe="Galaxy",FuturisticAxe="Futuristic",RubyAxe="Ruby",LichsAxe="Lich's"}
+                                    local Tiers = {"WoodenAxe","ChippedStoneAxe","RustyIronAxe","SteelAxe","GoldenAxe","ObsidianAxe","CrystalAxe","EmeraldAxe","RubyAxe","IcyAxe","PoisonAxe","NecromancerAxe","DragonboneAxe","ShadowAxe","FuturisticAxe","SteampunkAxe","LavaAxe","CandyAxe","CosmicAxe","GodlyAxe","SerratedAxe","RitualAxe","ElvenAxe","LichsAxe","GalaxyAxe"}
+                                    local DisplayNames = {ShadowAxe="Shadow",DragonboneAxe="Dragonbone",CandyAxe="Candy",SteampunkAxe="Steampunk",RitualAxe="Ritual",ChippedStoneAxe="Stone",IcyAxe="Icy",GodlyAxe="Godly",RustyIronAxe="Iron",NecromancerAxe="Necro",WoodenAxe="Wood",CosmicAxe="Cosmic",ObsidianAxe="Obsidian",SteelAxe="Steel",PoisonAxe="Poison",CrystalAxe="Crystal",ElvenAxe="Elven",SerratedAxe="Serrated",GoldenAxe="Gold",EmeraldAxe="Emerald",LavaAxe="Lava",GalaxyAxe="Galaxy",FuturisticAxe="Futuristic",RubyAxe="Ruby",LichsAxe="Lich's"}
                                     
                                     for i, tierName in ipairs(Tiers) do
                                         local dn = DisplayNames[tierName]
@@ -300,7 +304,8 @@ task.spawn(function()
                                         end
                                     end
                                     
-                                    if tier >= State.minSpinTier then
+                                    local currentTier = getBestAxeTier()
+                                    if tier >= State.minSpinTier and tier > currentTier then
                                         if moveToAnchor(hrp, spinAnchor, 3) then
                                             task.wait(0.3)
                                             firePrompt(d)

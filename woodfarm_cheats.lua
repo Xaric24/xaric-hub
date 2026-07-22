@@ -48,6 +48,7 @@ local State = {
     antiAFK = true,
     tpSpeed = 2 -- Delay between TPs to prevent glitching
 }
+Env._timberState = State
 
 -- Connections
 local connections = {}
@@ -58,6 +59,7 @@ local function clean()
     Env._timberSession = Env._timberSession + 1
     for _, c in ipairs(connections) do pcall(function() c:Disconnect() end) end
     connections = {}
+    if Env._timberState == State then Env._timberState = nil end
     pcall(function() Rayfield:Destroy() end)
 end
 Env._timberCleanup = clean
@@ -78,6 +80,12 @@ local function firePrompt(prompt)
     if prompt and prompt:IsA("ProximityPrompt") then
         pcall(fireproximityprompt, prompt, prompt.HoldDuration or 0)
     end
+end
+
+local function getMoney()
+    local stats = LP:FindFirstChild("leaderstats")
+    local money = stats and stats:FindFirstChild("Money")
+    return money and tonumber(money.Value) or nil
 end
 
 local function getAnchorCFrame(instance)
@@ -275,11 +283,11 @@ task.spawn(function()
                         if spinAnchor then
                             for _, d in ipairs(spinAnchor:GetDescendants()) do
                                 if bought then break end
-                                if d:IsA("ProximityPrompt") and tostring(d.ActionText):find("Buy") then
+                                if d:IsA("ProximityPrompt") and d.Enabled and tostring(d.ActionText):find("Buy") then
                                     local objectText = tostring(d.ObjectText)
                                     local tier = 0
-                                    local Tiers = {"WoodenAxe","ChippedStoneAxe","RustyIronAxe","SteelAxe","GoldenAxe","ObsidianAxe","CrystalAxe","EmeraldAxe","RubyAxe","IcyAxe","PoisonAxe","NecromancerAxe","DragonboneAxe","ShadowAxe","FuturisticAxe","SteampunkAxe","LavaAxe","CandyAxe","CosmicAxe","GodlyAxe","SerratedAxe","RitualAxe","ElvenAxe","LichsAxe","GalaxyAxe"}
-                                    local DisplayNames = {ShadowAxe="Shadow",DragonboneAxe="Dragonbone",CandyAxe="Candy",SteampunkAxe="Steampunk",RitualAxe="Ritual",ChippedStoneAxe="Stone",IcyAxe="Icy",GodlyAxe="Godly",RustyIronAxe="Iron",NecromancerAxe="Necro",WoodenAxe="Wood",CosmicAxe="Cosmic",ObsidianAxe="Obsidian",SteelAxe="Steel",PoisonAxe="Poison",CrystalAxe="Crystal",ElvenAxe="Elven",SerratedAxe="Serrated",GoldenAxe="Gold",EmeraldAxe="Emerald",LavaAxe="Lava",GalaxyAxe="Galaxy",FuturisticAxe="Futuristic",RubyAxe="Ruby",LichsAxe="Lich's"}
+                                    local Tiers = {"WoodenAxe","ChippedStoneAxe","RustyIronAxe","SteelAxe","GoldenAxe","ObsidianAxe","CrystalAxe","FrozenCrystalAxe","EmeraldAxe","RubyAxe","IcyAxe","PoisonAxe","NecromancerAxe","DragonboneAxe","ShadowAxe","FuturisticAxe","SteampunkAxe","LavaAxe","CandyAxe","CosmicAxe","GodlyAxe","SerratedAxe","RitualAxe","ElvenAxe","LichsAxe","GalaxyAxe"}
+                                    local DisplayNames = {ShadowAxe="Shadow",DragonboneAxe="Dragonbone",CandyAxe="Candy",SteampunkAxe="Steampunk",RitualAxe="Ritual",ChippedStoneAxe="Stone",IcyAxe="Icy",GodlyAxe="Godly",RustyIronAxe="Iron",NecromancerAxe="Necro",WoodenAxe="Wood",CosmicAxe="Cosmic",ObsidianAxe="Obsidian",SteelAxe="Steel",PoisonAxe="Poison",CrystalAxe="Crystal",FrozenCrystalAxe="Frozen Crystal",ElvenAxe="Elven",SerratedAxe="Serrated",GoldenAxe="Gold",EmeraldAxe="Emerald",LavaAxe="Lava",GalaxyAxe="Galaxy",FuturisticAxe="Futuristic",RubyAxe="Ruby",LichsAxe="Lich's"}
                                     
                                     for i, tierName in ipairs(Tiers) do
                                         local dn = DisplayNames[tierName]
@@ -290,9 +298,12 @@ task.spawn(function()
                                     
                                     if tier >= State.minSpinTier then
                                         if moveToAnchor(hrp, spinAnchor, 3) then
+                                            local moneyBefore = getMoney()
                                             task.wait(0.3)
                                             firePrompt(d)
-                                            bought = true
+                                            task.wait(math.max((d.HoldDuration or 0) + 0.4, 0.75))
+                                            local moneyAfter = getMoney()
+                                            bought = moneyBefore ~= nil and moneyAfter ~= nil and moneyAfter < moneyBefore
                                             break
                                         end
                                     end

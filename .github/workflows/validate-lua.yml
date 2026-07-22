@@ -1,0 +1,33 @@
+name: Validate Lua
+
+on:
+  push:
+    paths:
+      - "**.lua"
+      - ".github/workflows/validate-lua.yml"
+  pull_request:
+    paths:
+      - "**.lua"
+      - ".github/workflows/validate-lua.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    name: Lua syntax validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install parser
+        run: npm install --no-save luaparse
+
+      - name: Parse every Lua script
+        run: find . -name '*.lua' -print0 | xargs -0 -n1 ./node_modules/.bin/luaparse --quiet --file

@@ -28,6 +28,9 @@ local State = {
     autoSpin = false,
     autoEquip = false,
     autoUpgradeChipper = false,
+    autoClaimMoney = false,
+    autoBuyStump = false,
+    stumpTier = 1,
     tpSpeed = 2 -- Delay between TPs to prevent glitching
 }
 
@@ -98,6 +101,33 @@ MainTab:CreateToggle({
     Callback = function(v) State.autoUpgradeChipper = v end,
 })
 
+MainTab:CreateToggle({
+    Name = "Auto-Claim Money",
+    CurrentValue = false,
+    Flag = "AutoClaimMoney",
+    Callback = function(v) State.autoClaimMoney = v end,
+})
+
+-- ═══════════════════════════════════════════
+-- STUMPS TAB
+-- ═══════════════════════════════════════════
+local StumpsTab = Window:CreateTab("🪵 Stumps", 0)
+
+StumpsTab:CreateToggle({
+    Name = "Auto-Buy Stumps",
+    CurrentValue = false,
+    Flag = "AutoBuyStump",
+    Callback = function(v) State.autoBuyStump = v end,
+})
+
+StumpsTab:CreateDropdown({
+    Name = "Stump Tier to Buy",
+    Options = {"1", "2", "3", "4", "5", "6", "7", "8"},
+    CurrentOption = {"1"},
+    Flag = "StumpTier",
+    Callback = function(v) State.stumpTier = tonumber(v[1] or v) end,
+})
+
 -- ═══════════════════════════════════════════
 -- UTILS TAB
 -- ═══════════════════════════════════════════
@@ -163,6 +193,39 @@ task.spawn(function()
                     end
                 end
             end
+            
+            -- Wait before next action
+            if (State.autoCollect or State.autoSell) and (State.autoClaimMoney or State.autoSpin) then task.wait(State.tpSpeed / 2) end
+            
+            -- Claim Money
+            if State.autoClaimMoney then
+                local claimMoney = plot:FindFirstChild("ClaimMoney", true)
+                if claimMoney then
+                    local surface = claimMoney:FindFirstChild("Surface") or claimMoney:FindFirstChild("Part")
+                    if surface then
+                        hrp.CFrame = surface.CFrame + Vector3.new(0, 3, 0)
+                        task.wait(0.2)
+                        firetouchinterest(hrp, surface, 0)
+                        task.wait(0.1)
+                        firetouchinterest(hrp, surface, 1)
+                    end
+                end
+            end
+            
+            -- Wait before next action
+            if State.autoClaimMoney and State.autoSpin then task.wait(State.tpSpeed / 2) end
+            
+            -- Spin (requires TP to lever)
+            if State.autoSpin then
+                local lever = plot:FindFirstChild("LeverAnchor", true)
+                if lever then
+                    hrp.CFrame = lever.CFrame + Vector3.new(0, 3, 0)
+                    task.wait(0.3)
+                    for _, d in ipairs(lever:GetDescendants()) do
+                        if d:IsA("ProximityPrompt") then firePrompt(d) end
+                    end
+                end
+            end
         end
     end
 end)
@@ -171,8 +234,8 @@ end)
 track(RunService.Heartbeat:Connect(function()
     if math.random() > 0.05 then return end -- throttle
     
-    if State.autoSpin then
-        pcall(function() RS.SpinFeature:FireServer("spin") end)
+    if State.autoBuyStump then
+        pcall(function() RS.StumpShopBuy:FireServer(State.stumpTier) end)
     end
     
     if State.autoEquip then

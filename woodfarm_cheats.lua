@@ -42,6 +42,7 @@ local State = {
     minSpinTier = 1,
     autoEquip = false,
     autoUpgradeChipper = false,
+    autoUpgradeStand = false,
     autoClaimMoney = false,
     autoBuyStump = false,
     stumpTier = 1,
@@ -142,6 +143,38 @@ local function moveToAnchor(hrp, anchor, height)
     return true
 end
 
+local function clickUpgradeButton(button)
+    if not button or not button:IsA("TextButton") or not button.Visible then return false end
+    return pcall(function()
+        if firesignal then
+            firesignal(button.Activated)
+        else
+            button:Activate()
+        end
+    end)
+end
+
+local function tryUpgradeStand(plot)
+    local stand = plot and plot:FindFirstChild("UpgradeStand", true)
+    local money = getMoney()
+    if not stand or not money then return false end
+
+    -- One purchase per pass keeps spending controlled and lets costs refresh.
+    local upgrades = {
+        {card = "MutationCard", cost = "MutationChanceCost", maxed = "MutationChanceMaxed"},
+        {card = "LuckCard", cost = "LuckCost", maxed = "LuckMaxed"},
+        {card = "StandCard", cost = "NextSpinStandCost", maxed = "SpinStandMaxed"},
+    }
+    for _, upgrade in ipairs(upgrades) do
+        local cost = tonumber(stand:GetAttribute(upgrade.cost)) or math.huge
+        if not stand:GetAttribute(upgrade.maxed) and money >= cost then
+            local card = stand:FindFirstChild(upgrade.card, true)
+            if clickUpgradeButton(card and card:FindFirstChild("BuyBtn")) then return true end
+        end
+    end
+    return false
+end
+
 -- ═══════════════════════════════════════════
 -- MAIN TAB
 -- ═══════════════════════════════════════════
@@ -192,6 +225,13 @@ MainTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoUpgradeChipper",
     Callback = function(v) State.autoUpgradeChipper = v end,
+})
+
+MainTab:CreateToggle({
+    Name = "Auto-Upgrade Rolls, Luck & Mutation",
+    CurrentValue = false,
+    Flag = "AutoUpgradeStand",
+    Callback = function(v) State.autoUpgradeStand = v end,
 })
 
 MainTab:CreateToggle({
@@ -350,7 +390,7 @@ track(LP.Idled:Connect(function()
 end))
 
 local lastAntiAFK = 0
-local lastStumpBuy, lastEquip, lastChipperUpgrade = 0, 0, 0
+local lastStumpBuy, lastEquip, lastChipperUpgrade, lastStandUpgrade = 0, 0, 0, 0
 track(RunService.Heartbeat:Connect(function()
     if not isAlive() then return end
     local now = os.clock()
@@ -372,6 +412,10 @@ track(RunService.Heartbeat:Connect(function()
     if State.autoUpgradeChipper and now - lastChipperUpgrade >= 5 then
         pcall(function() RS.ChipperAction:FireServer("upgrade") end)
         lastChipperUpgrade = now
+    end
+    if State.autoUpgradeStand and now - lastStandUpgrade >= 5 then
+        tryUpgradeStand(getMyPlot())
+        lastStandUpgrade = now
     end
 end))
 

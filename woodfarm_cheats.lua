@@ -27,6 +27,7 @@ local RS = game:GetService("ReplicatedStorage")
 local WS = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
 local LP = Players.LocalPlayer
 local Env = getgenv()
 
@@ -44,6 +45,7 @@ local State = {
     autoClaimMoney = false,
     autoBuyStump = false,
     stumpTier = 1,
+    antiAFK = true,
     tpSpeed = 2 -- Delay between TPs to prevent glitching
 }
 
@@ -188,6 +190,13 @@ UtilsTab:CreateButton({
     end,
 })
 
+UtilsTab:CreateToggle({
+    Name = "Anti-AFK",
+    CurrentValue = State.antiAFK,
+    Flag = "AntiAFK",
+    Callback = function(v) State.antiAFK = v end,
+})
+
 UtilsTab:CreateButton({
     Name = "Upgrade Chipper 1x",
     Callback = function()
@@ -309,10 +318,26 @@ task.spawn(function()
 end)
 
 -- Background Loops (no TP required)
+track(LP.Idled:Connect(function()
+    if not isAlive() or not State.antiAFK then return end
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end)
+end))
+
+local lastAntiAFK = 0
 local lastStumpBuy, lastEquip, lastChipperUpgrade = 0, 0, 0
 track(RunService.Heartbeat:Connect(function()
     if not isAlive() then return end
     local now = os.clock()
+    if State.antiAFK and now - lastAntiAFK >= 55 then
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+        lastAntiAFK = now
+    end
     if State.autoBuyStump and now - lastStumpBuy >= 5 then
         pcall(function() RS.StumpShopBuy:FireServer(State.stumpTier) end)
         lastStumpBuy = now

@@ -149,7 +149,14 @@ getgenv()._crushforgeState = State
 -- ═══════════════════════════════════════════
 -- UI LIBRARY
 -- ═══════════════════════════════════════════
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local function loadRayfield()
+    local ok, source = pcall(game.HttpGet, game, "https://sirius.menu/rayfield")
+    assert(ok and type(source) == "string" and #source > 0, "Unable to download Rayfield")
+    local chunk, compileError = loadstring(source)
+    assert(chunk, "Rayfield compile failed: " .. tostring(compileError))
+    return chunk()
+end
+local Rayfield = loadRayfield()
 
 local Window = Rayfield:CreateWindow({
     Name              = "⛏️ CrushForge v1",

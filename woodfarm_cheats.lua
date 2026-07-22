@@ -56,6 +56,7 @@ local function clean()
     Env._timberSession = Env._timberSession + 1
     for _, c in ipairs(connections) do pcall(function() c:Disconnect() end) end
     connections = {}
+    pcall(function() Rayfield:Destroy() end)
 end
 Env._timberCleanup = clean
 

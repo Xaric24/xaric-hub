@@ -93,6 +93,39 @@ local function getBestAxeTier()
 end
 
 local skippedOffers = {}
+local AxeTiers = {"WoodenAxe", "ChippedStoneAxe", "RustyIronAxe", "SteelAxe", "GoldenAxe", "ObsidianAxe", "CrystalAxe", "EmeraldAxe", "RubyAxe", "IcyAxe", "PoisonAxe", "NecromancerAxe", "DragonboneAxe", "ShadowAxe", "FuturisticAxe", "SteampunkAxe", "LavaAxe", "CandyAxe", "CosmicAxe", "GodlyAxe", "SerratedAxe", "RitualAxe", "ElvenAxe", "LichsAxe", "GalaxyAxe"}
+local AxeNames = {ShadowAxe="Shadow", DragonboneAxe="Dragonbone", CandyAxe="Candy", SteampunkAxe="Steampunk", RitualAxe="Ritual", ChippedStoneAxe="Stone", IcyAxe="Icy", GodlyAxe="Godly", RustyIronAxe="Iron", NecromancerAxe="Necro", WoodenAxe="Wood", CosmicAxe="Cosmic", ObsidianAxe="Obsidian", SteelAxe="Steel", PoisonAxe="Poison", CrystalAxe="Crystal", ElvenAxe="Elven", SerratedAxe="Serrated", GoldenAxe="Gold", EmeraldAxe="Emerald", LavaAxe="Lava", GalaxyAxe="Galaxy", FuturisticAxe="Futuristic", RubyAxe="Ruby", LichsAxe="Lich's"}
+
+local function getOfferTier(name)
+    for tier, axeId in ipairs(AxeTiers) do
+        local displayName = AxeNames[axeId]
+        if displayName and name:find(displayName, 1, true) then return tier end
+    end
+    return 0
+end
+
+local function findBestUpgradeOffer(stands)
+    local currentTier = getBestAxeTier()
+    local best
+    for _, stand in ipairs(stands:GetChildren()) do
+        local anchor = stand:FindFirstChild("SpinAnchor")
+        if anchor then
+            for _, prompt in ipairs(anchor:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") and prompt.Enabled and tostring(prompt.ActionText):find("Buy") then
+                    local name = tostring(prompt.ObjectText)
+                    local key = stand.Name .. "|" .. name
+                    local tier = getOfferTier(name)
+                    if (skippedOffers[key] or 0) <= os.clock()
+                        and tier >= State.minSpinTier and tier > currentTier
+                        and (not best or tier > best.tier) then
+                        best = {prompt = prompt, anchor = anchor, key = key, tier = tier}
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
 
 local function getAnchorCFrame(instance)
     if not instance then return nil end
@@ -279,48 +312,16 @@ task.spawn(function()
             
             -- Spin (requires TP to lever and stand)
             if State.autoSpin then
-                -- Check if there's a good axe to buy first
+                -- Scan every rolled offer, then buy only the highest upgrade.
                 local bought = false
                 local stands = plot:FindFirstChild("Stands", true) or plot:FindFirstChild("Stand", true)
                 if stands then
-                    for _, stand in ipairs(stands:GetChildren()) do
-                        if bought then break end
-                        local spinAnchor = stand:FindFirstChild("SpinAnchor")
-                        if spinAnchor then
-                            for _, d in ipairs(spinAnchor:GetDescendants()) do
-                                if bought then break end
-                                if d:IsA("ProximityPrompt") and d.Enabled and tostring(d.ActionText):find("Buy") then
-                                    local objectText = tostring(d.ObjectText)
-                                    local offerKey = stand.Name .. "|" .. objectText
-                                    if (skippedOffers[offerKey] or 0) <= os.clock() then
-                                    local tier = 0
-                                    local Tiers = {"WoodenAxe","ChippedStoneAxe","RustyIronAxe","SteelAxe","GoldenAxe","ObsidianAxe","CrystalAxe","EmeraldAxe","RubyAxe","IcyAxe","PoisonAxe","NecromancerAxe","DragonboneAxe","ShadowAxe","FuturisticAxe","SteampunkAxe","LavaAxe","CandyAxe","CosmicAxe","GodlyAxe","SerratedAxe","RitualAxe","ElvenAxe","LichsAxe","GalaxyAxe"}
-                                    local DisplayNames = {ShadowAxe="Shadow",DragonboneAxe="Dragonbone",CandyAxe="Candy",SteampunkAxe="Steampunk",RitualAxe="Ritual",ChippedStoneAxe="Stone",IcyAxe="Icy",GodlyAxe="Godly",RustyIronAxe="Iron",NecromancerAxe="Necro",WoodenAxe="Wood",CosmicAxe="Cosmic",ObsidianAxe="Obsidian",SteelAxe="Steel",PoisonAxe="Poison",CrystalAxe="Crystal",ElvenAxe="Elven",SerratedAxe="Serrated",GoldenAxe="Gold",EmeraldAxe="Emerald",LavaAxe="Lava",GalaxyAxe="Galaxy",FuturisticAxe="Futuristic",RubyAxe="Ruby",LichsAxe="Lich's"}
-                                    
-                                    for i, tierName in ipairs(Tiers) do
-                                        local dn = DisplayNames[tierName]
-                                        if dn and objectText:find(dn) then
-                                            tier = i
-                                        end
-                                    end
-                                    
-                                    local currentTier = getBestAxeTier()
-                                    if tier >= State.minSpinTier and tier > currentTier then
-                                        if moveToAnchor(hrp, spinAnchor, 3) then
-                                            task.wait(0.3)
-                                            firePrompt(d)
-                                            -- Prompt activation is the game's purchase request.  Do not wait
-                                            -- for leaderstats replication, which can arrive after the next spin.
-                                            -- Cool down this exact offer so a rejected/stale stand cannot trap us.
-                                            skippedOffers[offerKey] = os.clock() + 8
-                                            bought = true
-                                            break
-                                        end
-                                    end
-                                    end
-                                end
-                            end
-                        end
+                    local offer = findBestUpgradeOffer(stands)
+                    if offer and moveToAnchor(hrp, offer.anchor, 3) then
+                        task.wait(0.3)
+                        firePrompt(offer.prompt)
+                        skippedOffers[offer.key] = os.clock() + 8
+                        bought = true
                     end
                 end
                 
